@@ -9,18 +9,26 @@ import Cocoa
 class NetworkMonitor {
     private var lastSent: UInt64 = 0
     private var lastReceived: UInt64 = 0
-    private var timer: Timer?
+    private var timer: DispatchSourceTimer?
 
     var updateHandler: ((String, String) -> Void)?
 
     init() {
-        timer = Timer.scheduledTimer(
-            withTimeInterval: 1.0,
-            repeats: true,
-            block: { [self] _ in
-                self.updateStats()
-            }
-        )
+        startMonitoring()
+    }
+    
+    private func startMonitoring() {
+        let queue = DispatchQueue.global(qos: .utility)
+        timer = DispatchSource.makeTimerSource(queue: queue)
+        timer?.schedule(deadline: .now(), repeating: 2.0) // 可调间隔
+        timer?.setEventHandler { [self] in
+            self.updateStats()
+        }
+        timer?.resume()
+    }
+    
+    deinit {
+        timer?.cancel()
     }
 
     private func getNetworkStats() -> (sent: UInt64, received: UInt64) {
@@ -67,14 +75,25 @@ class NetworkMonitor {
     }
 
     private func updateStats() {
-        let (currentSent, currentReceived) = getNetworkStats()
-        let sentSpeed = currentSent - lastSent
-        let receivedSpeed = currentReceived - lastReceived
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self = self else { return }
+            
+            let (currentSent, currentReceived) = getNetworkStats()
+            let sentSpeed = currentSent - lastSent
+            let receivedSpeed = currentReceived - lastReceived
+            
+            let uploadStr = "\(format(speed: sentSpeed)) ↑"
+            let downloadStr = "\(format(speed: receivedSpeed)) ↓"
+            
+            // 主线程更新 UI
+            DispatchQueue.main.async { [self] in
+                self.lastSent = currentSent
+                self.lastReceived = currentReceived
 
-        lastSent = currentSent
-        lastReceived = currentReceived
-
-        updateHandler?("\(format(speed: sentSpeed)) ↑", "\(format(speed: receivedSpeed)) ↓")
+                self.updateHandler?(uploadStr, downloadStr)
+            }
+        }
+        
     }
 
     private func format(speed: UInt64) -> String {
