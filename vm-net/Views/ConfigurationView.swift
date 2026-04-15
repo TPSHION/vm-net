@@ -13,11 +13,13 @@ struct ConfigurationView: View {
     private enum Page {
         case settings
         case speedTest
+        case diagnosis
     }
 
     @ObservedObject var preferences: AppPreferences
     @ObservedObject var launchAtLoginManager: LaunchAtLoginManager
     @ObservedObject var speedTestStore: SpeedTestStore
+    @ObservedObject var diagnosisStore: NetworkDiagnosisStore
     let onFloatingBallToggle: (Bool) -> Void
     @State private var page: Page = .settings
 
@@ -28,24 +30,41 @@ struct ConfigurationView: View {
                 settingsPage
             case .speedTest:
                 speedTestPage
+            case .diagnosis:
+                diagnosisPage
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(24)
+        .padding(.horizontal, 24)
     }
 
     private var settingsPage: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 16) {
             headerSection
-            launchSection
-            presentationSection
-            speedTestEntrySection
-            Spacer(minLength: 0)
+
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 18) {
+                    launchSection
+                    presentationSection
+                    speedTestEntrySection
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 12)
+            }
+            .scrollIndicators(.hidden)
         }
+        .padding(.top, 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var speedTestPage: some View {
         SpeedTestPageView(store: speedTestStore) {
+            page = .settings
+        }
+    }
+
+    private var diagnosisPage: some View {
+        NetworkDiagnosisPageView(store: diagnosisStore) {
             page = .settings
         }
     }
@@ -74,15 +93,9 @@ struct ConfigurationView: View {
                 .toggleStyle(.switch)
 
                 if launchAtLoginManager.requiresApproval {
-                    HStack(spacing: 10) {
-                        Text("系统需要你在“登录项”里允许 vm-net。")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-
-                        Button("打开系统设置") {
-                            launchAtLoginManager.openSystemSettings()
-                        }
-                        .controlSize(.small)
+                    ViewThatFits(in: .horizontal) {
+                        launchApprovalRow
+                        launchApprovalColumn
                     }
                 } else if let lastErrorMessage = launchAtLoginManager.lastErrorMessage {
                     Text(lastErrorMessage)
@@ -100,15 +113,6 @@ struct ConfigurationView: View {
     private var presentationSection: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("状态栏")
-                        .font(.system(size: 13, weight: .medium))
-
-                    Text("状态栏会保持常驻，持续显示上下行速率。")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                }
-
                 Toggle(isOn: floatingBallBinding) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("悬浮胶囊")
@@ -147,31 +151,17 @@ struct ConfigurationView: View {
                         description: backgroundTransparencySummary
                     )
 
-                    HStack {
-                        Text("颜色修改会立即作用到悬浮胶囊。")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-
-                        Spacer(minLength: 12)
-
-                        Button("恢复默认外观") {
-                            preferences.resetFloatingBallAppearance()
-                        }
-                        .controlSize(.small)
+                    ViewThatFits(in: .horizontal) {
+                        appearanceFooterRow
+                        appearanceFooterColumn
                     }
                 }
 
                 Divider()
 
-                HStack(alignment: .firstTextBaseline) {
-                    Text("速率显示模式")
-                        .font(.system(size: 13, weight: .medium))
-
-                    Spacer(minLength: 16)
-
-                    Text(preferences.displayMode.title)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                ViewThatFits(in: .horizontal) {
+                    displayModeHeaderRow
+                    displayModeHeaderColumn
                 }
 
                 Picker("速率显示模式", selection: $preferences.displayMode) {
@@ -194,35 +184,17 @@ struct ConfigurationView: View {
 
     private var speedTestEntrySection: some View {
         GroupBox {
-            Button {
-                page = .speedTest
-            } label: {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("网络测速")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.primary)
-
-                        Text("进入专门页面，运行 M-Lab 下载与上传测速。")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer(minLength: 12)
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.tertiary)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 12) {
+                    speedTestEntryButton
+                    diagnosisEntryButton
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.55))
-                )
+
+                VStack(alignment: .leading, spacing: 12) {
+                    speedTestEntryButton
+                    diagnosisEntryButton
+                }
             }
-            .buttonStyle(.plain)
             .padding(4)
         } label: {
             Text("功能")
@@ -370,5 +342,136 @@ struct ConfigurationView: View {
             ColorPicker("", selection: selection, supportsOpacity: false)
                 .labelsHidden()
         }
+    }
+
+    private var launchApprovalRow: some View {
+        HStack(spacing: 10) {
+            Text("系统需要你在“登录项”里允许 vm-net。")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+
+            Button("打开系统设置") {
+                launchAtLoginManager.openSystemSettings()
+            }
+            .controlSize(.small)
+        }
+    }
+
+    private var launchApprovalColumn: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("系统需要你在“登录项”里允许 vm-net。")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+
+            Button("打开系统设置") {
+                launchAtLoginManager.openSystemSettings()
+            }
+            .controlSize(.small)
+        }
+    }
+
+    private var appearanceFooterRow: some View {
+        HStack(spacing: 12) {
+            Text("颜色修改会立即作用到悬浮胶囊。")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 12)
+
+            Button("恢复默认外观") {
+                preferences.resetFloatingBallAppearance()
+            }
+            .controlSize(.small)
+        }
+    }
+
+    private var appearanceFooterColumn: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("颜色修改会立即作用到悬浮胶囊。")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+
+            Button("恢复默认外观") {
+                preferences.resetFloatingBallAppearance()
+            }
+            .controlSize(.small)
+        }
+    }
+
+    private var displayModeHeaderRow: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("速率显示模式")
+                .font(.system(size: 13, weight: .medium))
+
+            Spacer(minLength: 16)
+
+            Text(preferences.displayMode.title)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var displayModeHeaderColumn: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("速率显示模式")
+                .font(.system(size: 13, weight: .medium))
+
+            Text(preferences.displayMode.title)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var speedTestEntryButton: some View {
+        featureEntryButton(
+            title: "网络测速",
+            subtitle: "进入专门页面，运行 M-Lab 下载与上传测速。"
+        ) {
+            page = .speedTest
+        }
+    }
+
+    private var diagnosisEntryButton: some View {
+        featureEntryButton(
+            title: "网络诊断",
+            subtitle: "检查网络路径、DNS 和 HTTPS 连通性。"
+        ) {
+            page = .diagnosis
+        }
+    }
+
+    private func featureEntryButton(
+        title: String,
+        subtitle: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.primary)
+
+                    Text(subtitle)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 12)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.55))
+            )
+        }
+        .buttonStyle(.plain)
     }
 }

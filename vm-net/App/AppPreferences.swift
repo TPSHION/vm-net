@@ -167,7 +167,7 @@ final class AppPreferences: ObservableObject {
 
         self.displayMode = ThroughputDisplayMode(
             rawValue: defaults.string(forKey: Keys.displayMode) ?? ""
-        ) ?? .smoothed
+        ) ?? .realtime
         self.showInFloatingBall = storedShowInFloatingBall
         self.floatingBallBackgroundColor = Self.loadBackgroundColor(from: defaults)
         self.floatingBallTextColor = Self.loadColor(

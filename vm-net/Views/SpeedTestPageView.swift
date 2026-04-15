@@ -52,6 +52,7 @@ struct SpeedTestPageView: View {
                 .controlSize(.small)
             }
         }
+        .frame(maxWidth: .infinity, minHeight: 34, alignment: .center)
     }
 
     private var statusSection: some View {

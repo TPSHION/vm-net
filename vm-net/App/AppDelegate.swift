@@ -14,12 +14,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let launchAtLoginManager = LaunchAtLoginManager()
     private let throughputStore = ThroughputStore()
     private let speedTestStore = SpeedTestStore()
+    private let diagnosisStore = NetworkDiagnosisStore()
     private var statusItemController: StatusItemController?
     private var floatingBallController: FloatingBallController?
     private lazy var configurationWindowController = ConfigurationWindowController(
         preferences: preferences,
         launchAtLoginManager: launchAtLoginManager,
         speedTestStore: speedTestStore,
+        diagnosisStore: diagnosisStore,
         onFloatingBallToggle: { [weak self] isEnabled in
             self?.setFloatingBallEnabled(isEnabled)
         }
