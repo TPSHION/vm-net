@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import Combine
 
 @MainActor
 final class StatusItemController {
@@ -15,54 +16,35 @@ final class StatusItemController {
     }
 
     private let statusItem: NSStatusItem
-    private let menu = NSMenu()
     private let contentView = StatusItemContentView()
     private let formatter = ByteRateFormatter()
-    private let networkMonitor: NetworkMonitor
+    private let store: ThroughputStore
     private let preferences: AppPreferences
-    private let openWindowItem = NSMenuItem()
+    private var cancellables: Set<AnyCancellable> = []
 
     var openWindowHandler: (() -> Void)?
 
     init(
-        networkMonitor: NetworkMonitor = NetworkMonitor(),
+        store: ThroughputStore,
         preferences: AppPreferences
     ) {
         self.statusItem = NSStatusBar.system.statusItem(
             withLength: Layout.statusItemWidth
         )
-        self.networkMonitor = networkMonitor
+        self.store = store
         self.preferences = preferences
 
         configureMenu()
         configureButton()
+        bind()
         render(.idle)
-
-        self.networkMonitor.updateHandler = { [weak self] snapshot in
-            self?.render(snapshot)
-        }
-        self.networkMonitor.startMonitoring()
-    }
-
-    deinit {
-        networkMonitor.stopMonitoring()
     }
 
     private func configureMenu() {
-        openWindowItem.title = "Open vm-net"
-        openWindowItem.action = #selector(handleOpenWindow)
-        openWindowItem.target = self
-        menu.addItem(openWindowItem)
-        menu.addItem(.separator())
-
-        let quitItem = NSMenuItem(
-            title: "Quit",
-            action: #selector(NSApplication.terminate(_:)),
-            keyEquivalent: "q"
+        statusItem.menu = AppControlMenuFactory.makeMenu(
+            target: self,
+            openSelector: #selector(handleOpenWindow)
         )
-
-        menu.addItem(quitItem)
-        statusItem.menu = menu
     }
 
     private func configureButton() {
@@ -79,6 +61,14 @@ final class StatusItemController {
             contentView.topAnchor.constraint(equalTo: button.topAnchor),
             contentView.bottomAnchor.constraint(equalTo: button.bottomAnchor),
         ])
+    }
+
+    private func bind() {
+        Publishers.CombineLatest(store.$snapshot, preferences.$displayMode)
+            .sink { [weak self] snapshot, _ in
+                self?.render(snapshot)
+            }
+            .store(in: &cancellables)
     }
 
     private func render(_ snapshot: NetworkMonitorSnapshot) {
@@ -100,5 +90,9 @@ final class StatusItemController {
     @objc
     private func handleOpenWindow() {
         openWindowHandler?()
+    }
+
+    func invalidate() {
+        NSStatusBar.system.removeStatusItem(statusItem)
     }
 }

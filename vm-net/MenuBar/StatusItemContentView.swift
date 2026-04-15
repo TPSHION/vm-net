@@ -53,7 +53,7 @@ final class StatusItemContentView: NSView {
 
     private func setupView() {
         [uploadLabel, downloadLabel].forEach { label in
-            label.font = .monospacedDigitSystemFont(ofSize: 9, weight: .regular)
+            label.font = .monospacedSystemFont(ofSize: 9, weight: .regular)
             label.textColor = .labelColor
             label.alignment = .right
             label.lineBreakMode = .byClipping

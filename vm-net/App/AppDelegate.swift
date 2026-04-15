@@ -12,19 +12,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private let preferences = AppPreferences()
     private let launchAtLoginManager = LaunchAtLoginManager()
+    private let throughputStore = ThroughputStore()
     private var statusItemController: StatusItemController?
+    private var floatingBallController: FloatingBallController?
     private lazy var configurationWindowController = ConfigurationWindowController(
         preferences: preferences,
-        launchAtLoginManager: launchAtLoginManager
+        launchAtLoginManager: launchAtLoginManager,
+        onFloatingBallToggle: { [weak self] isEnabled in
+            self?.setFloatingBallEnabled(isEnabled)
+        }
     )
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let statusItemController = StatusItemController(preferences: preferences)
-        statusItemController.openWindowHandler = { [weak self] in
-            self?.showMainWindow()
+        ensureStatusItemController()
+        if preferences.showInFloatingBall {
+            ensureFloatingBallController()
         }
-
-        self.statusItemController = statusItemController
 
         if !LaunchAtLoginManager.wasLaunchedAtLogin {
             showMainWindow()
@@ -38,11 +41,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        statusItemController?.invalidate()
         statusItemController = nil
+        floatingBallController?.hide()
+        floatingBallController = nil
     }
 
     func showMainWindow() {
         launchAtLoginManager.refresh()
         configurationWindowController.present()
+    }
+
+    private func setFloatingBallEnabled(_ isEnabled: Bool) {
+        if isEnabled {
+            ensureFloatingBallController()
+        } else {
+            floatingBallController?.hide()
+        }
+    }
+
+    private func ensureStatusItemController() {
+        guard statusItemController == nil else { return }
+
+        let statusItemController = StatusItemController(
+            store: throughputStore,
+            preferences: preferences
+        )
+        statusItemController.openWindowHandler = { [weak self] in
+            self?.showMainWindow()
+        }
+
+        self.statusItemController = statusItemController
+    }
+
+    private func ensureFloatingBallController() {
+        if let floatingBallController {
+            floatingBallController.show()
+            return
+        }
+
+        let floatingBallController = FloatingBallController(
+            store: throughputStore,
+            preferences: preferences
+        )
+        floatingBallController.openWindowHandler = { [weak self] in
+            self?.showMainWindow()
+        }
+        floatingBallController.show()
+
+        self.floatingBallController = floatingBallController
     }
 }

@@ -12,17 +12,19 @@ import SwiftUI
 final class ConfigurationWindowController: NSWindowController {
 
     private enum Layout {
-        static let defaultSize = NSSize(width: 520, height: 400)
-        static let minSize = NSSize(width: 480, height: 360)
+        static let defaultSize = NSSize(width: 560, height: 470)
+        static let minSize = NSSize(width: 520, height: 420)
     }
 
     init(
         preferences: AppPreferences,
-        launchAtLoginManager: LaunchAtLoginManager
+        launchAtLoginManager: LaunchAtLoginManager,
+        onFloatingBallToggle: @escaping (Bool) -> Void
     ) {
         let rootView = ConfigurationView(
             preferences: preferences,
-            launchAtLoginManager: launchAtLoginManager
+            launchAtLoginManager: launchAtLoginManager,
+            onFloatingBallToggle: onFloatingBallToggle
         )
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)

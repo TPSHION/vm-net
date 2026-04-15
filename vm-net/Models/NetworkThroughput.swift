@@ -42,4 +42,35 @@ struct NetworkThroughput: Equatable {
                 + (downloadBytesPerSecond - previous.downloadBytesPerSecond) * factor
         )
     }
+
+    func stabilized(
+        against previous: NetworkThroughput,
+        minimumDelta: Double,
+        relativeDelta: Double
+    ) -> NetworkThroughput {
+        NetworkThroughput(
+            uploadBytesPerSecond: stabilizedComponent(
+                uploadBytesPerSecond,
+                previous: previous.uploadBytesPerSecond,
+                minimumDelta: minimumDelta,
+                relativeDelta: relativeDelta
+            ),
+            downloadBytesPerSecond: stabilizedComponent(
+                downloadBytesPerSecond,
+                previous: previous.downloadBytesPerSecond,
+                minimumDelta: minimumDelta,
+                relativeDelta: relativeDelta
+            )
+        )
+    }
+
+    private func stabilizedComponent(
+        _ current: Double,
+        previous: Double,
+        minimumDelta: Double,
+        relativeDelta: Double
+    ) -> Double {
+        let threshold = max(minimumDelta, previous * relativeDelta)
+        return abs(current - previous) >= threshold ? current : previous
+    }
 }

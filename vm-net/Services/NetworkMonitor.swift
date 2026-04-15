@@ -12,6 +12,8 @@ final class NetworkMonitor {
     private let countersReader: NetworkCountersReading
     private let samplingInterval: TimeInterval
     private let smoothingFactor: Double
+    private let displayDeadbandBytesPerSecond: Double
+    private let displayDeadbandRatio: Double
     private let historyLimit: Int
     private let queue: DispatchQueue
 
@@ -26,6 +28,8 @@ final class NetworkMonitor {
         countersReader: NetworkCountersReading = SystemNetworkCountersReader(),
         samplingInterval: TimeInterval = 1.0,
         smoothingFactor: Double = 0.35,
+        displayDeadbandBytesPerSecond: Double = 512,
+        displayDeadbandRatio: Double = 0.12,
         historyLimit: Int = 18,
         queue: DispatchQueue = DispatchQueue(
             label: "cn.tpshion.vm-net.network-monitor"
@@ -34,6 +38,8 @@ final class NetworkMonitor {
         self.countersReader = countersReader
         self.samplingInterval = samplingInterval
         self.smoothingFactor = smoothingFactor
+        self.displayDeadbandBytesPerSecond = displayDeadbandBytesPerSecond
+        self.displayDeadbandRatio = displayDeadbandRatio
         self.historyLimit = historyLimit
         self.queue = queue
     }
@@ -111,9 +117,15 @@ final class NetworkMonitor {
         lastCounters = currentCounters
 
         let instantaneous = currentCounters.throughput(since: previousCounters)
-        displayedThroughput = instantaneous.smoothed(
-            against: displayedThroughput,
+        let previousDisplayedThroughput = displayedThroughput
+        let smoothedThroughput = instantaneous.smoothed(
+            against: previousDisplayedThroughput,
             factor: smoothingFactor
+        )
+        displayedThroughput = smoothedThroughput.stabilized(
+            against: previousDisplayedThroughput,
+            minimumDelta: displayDeadbandBytesPerSecond,
+            relativeDelta: displayDeadbandRatio
         )
         appendToHistory(displayedThroughput)
 
