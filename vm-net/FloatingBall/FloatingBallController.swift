@@ -25,6 +25,15 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate {
     private var cancellables: Set<AnyCancellable> = []
 
     var openWindowHandler: (() -> Void)?
+    var frameChangeHandler: ((CGRect, NSScreen?) -> Void)?
+
+    var currentFrame: CGRect? {
+        window?.frame
+    }
+
+    var currentScreen: NSScreen? {
+        window?.screen
+    }
 
     init(
         store: ThroughputStore,
@@ -62,6 +71,7 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate {
         }
 
         window.orderFrontRegardless()
+        notifyFrameChange()
     }
 
     func hide() {
@@ -72,10 +82,12 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate {
 
     func windowDidMove(_ notification: Notification) {
         persistWindowPlacement()
+        notifyFrameChange()
     }
 
     func windowDidChangeScreen(_ notification: Notification) {
         persistWindowPlacement()
+        notifyFrameChange()
     }
 
     private func configurePanel(_ panel: FloatingBallPanel) {
@@ -214,6 +226,11 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate {
             x: min(max(origin.x, minX), maxX),
             y: min(max(origin.y, minY), maxY)
         )
+    }
+
+    private func notifyFrameChange() {
+        guard let window else { return }
+        frameChangeHandler?(window.frame, window.screen)
     }
 }
 

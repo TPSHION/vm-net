@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let diagnosisStore = NetworkDiagnosisStore()
     private var statusItemController: StatusItemController?
     private var floatingBallController: FloatingBallController?
+    private var desktopPetController: DesktopPetController?
     private lazy var configurationWindowController = ConfigurationWindowController(
         preferences: preferences,
         launchAtLoginManager: launchAtLoginManager,
@@ -24,6 +25,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         diagnosisStore: diagnosisStore,
         onFloatingBallToggle: { [weak self] isEnabled in
             self?.setFloatingBallEnabled(isEnabled)
+        },
+        onDesktopPetToggle: { [weak self] isEnabled in
+            self?.setDesktopPetEnabled(isEnabled)
         }
     )
 
@@ -32,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if preferences.showInFloatingBall {
             ensureFloatingBallController()
         }
+        refreshDesktopPetVisibility()
 
         if !LaunchAtLoginManager.wasLaunchedAtLogin {
             showMainWindow()
@@ -49,6 +54,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItemController = nil
         floatingBallController?.hide()
         floatingBallController = nil
+        desktopPetController?.hide()
+        desktopPetController = nil
     }
 
     func showMainWindow() {
@@ -61,6 +68,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ensureFloatingBallController()
         } else {
             floatingBallController?.hide()
+        }
+
+        refreshDesktopPetVisibility()
+    }
+
+    private func setDesktopPetEnabled(_ isEnabled: Bool) {
+        if isEnabled {
+            refreshDesktopPetVisibility()
+        } else {
+            desktopPetController?.hide()
         }
     }
 
@@ -91,8 +108,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         floatingBallController.openWindowHandler = { [weak self] in
             self?.showMainWindow()
         }
+        floatingBallController.frameChangeHandler = { [weak self] frame, screen in
+            self?.updateDesktopPetAttachment(anchorFrame: frame, screen: screen)
+        }
         floatingBallController.show()
 
         self.floatingBallController = floatingBallController
+    }
+
+    private func refreshDesktopPetVisibility() {
+        guard preferences.showDesktopPet, preferences.showInFloatingBall else {
+            desktopPetController?.hide()
+            return
+        }
+
+        guard
+            let floatingBallController,
+            let anchorFrame = floatingBallController.currentFrame
+        else {
+            return
+        }
+
+        let desktopPetController = ensureDesktopPetController()
+        desktopPetController.show(
+            attachedTo: anchorFrame,
+            on: floatingBallController.currentScreen
+        )
+    }
+
+    private func ensureDesktopPetController() -> DesktopPetController {
+        if let desktopPetController {
+            return desktopPetController
+        }
+
+        let desktopPetController = DesktopPetController()
+        self.desktopPetController = desktopPetController
+        return desktopPetController
+    }
+
+    private func updateDesktopPetAttachment(
+        anchorFrame: CGRect,
+        screen: NSScreen?
+    ) {
+        guard preferences.showDesktopPet, preferences.showInFloatingBall else {
+            desktopPetController?.hide()
+            return
+        }
+
+        ensureDesktopPetController().show(
+            attachedTo: anchorFrame,
+            on: screen
+        )
     }
 }

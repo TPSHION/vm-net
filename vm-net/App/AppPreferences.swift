@@ -67,6 +67,7 @@ final class AppPreferences: ObservableObject {
     private enum Keys {
         static let displayMode = "cn.tpshion.vm-net.display-mode"
         static let showInFloatingBall = "cn.tpshion.vm-net.show-in-floating-ball"
+        static let showDesktopPet = "cn.tpshion.vm-net.show-desktop-pet"
         static let floatingBallBackgroundColor =
             "cn.tpshion.vm-net.floating-ball-background-color"
         static let floatingBallTextColor =
@@ -94,6 +95,12 @@ final class AppPreferences: ObservableObject {
     @Published var showInFloatingBall: Bool {
         didSet {
             defaults.set(showInFloatingBall, forKey: Keys.showInFloatingBall)
+        }
+    }
+
+    @Published var showDesktopPet: Bool {
+        didSet {
+            defaults.set(showDesktopPet, forKey: Keys.showDesktopPet)
         }
     }
 
@@ -164,11 +171,14 @@ final class AppPreferences: ObservableObject {
 
         let storedShowInFloatingBall =
             defaults.object(forKey: Keys.showInFloatingBall) as? Bool ?? false
+        let storedShowDesktopPet =
+            defaults.object(forKey: Keys.showDesktopPet) as? Bool ?? false
 
         self.displayMode = ThroughputDisplayMode(
             rawValue: defaults.string(forKey: Keys.displayMode) ?? ""
         ) ?? .realtime
         self.showInFloatingBall = storedShowInFloatingBall
+        self.showDesktopPet = storedShowDesktopPet
         self.floatingBallBackgroundColor = Self.loadBackgroundColor(from: defaults)
         self.floatingBallTextColor = Self.loadColor(
             from: defaults,

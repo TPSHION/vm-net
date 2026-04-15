@@ -21,6 +21,7 @@ struct ConfigurationView: View {
     @ObservedObject var speedTestStore: SpeedTestStore
     @ObservedObject var diagnosisStore: NetworkDiagnosisStore
     let onFloatingBallToggle: (Bool) -> Void
+    let onDesktopPetToggle: (Bool) -> Void
     @State private var page: Page = .settings
 
     var body: some View {
@@ -124,6 +125,24 @@ struct ConfigurationView: View {
                     }
                 }
                 .toggleStyle(.switch)
+
+                Toggle(isOn: desktopPetBinding) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("桌面宠物")
+                            .font(.system(size: 13, weight: .medium))
+
+                        Text("在悬浮胶囊旁边显示 Cute Interactive Robot。")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .toggleStyle(.switch)
+
+                if preferences.showDesktopPet && !preferences.showInFloatingBall {
+                    Text("桌面宠物会跟随悬浮胶囊显示；当前胶囊关闭，所以宠物会先保持隐藏。")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
 
                 Divider()
 
@@ -248,6 +267,16 @@ struct ConfigurationView: View {
         Binding(
             get: { Color(nsColor: preferences.floatingBallBackgroundColor) },
             set: { preferences.floatingBallBackgroundColor = NSColor($0) }
+        )
+    }
+
+    private var desktopPetBinding: Binding<Bool> {
+        Binding(
+            get: { preferences.showDesktopPet },
+            set: { newValue in
+                preferences.showDesktopPet = newValue
+                onDesktopPetToggle(newValue)
+            }
         )
     }
 

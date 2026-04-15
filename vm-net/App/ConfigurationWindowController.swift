@@ -21,14 +21,16 @@ final class ConfigurationWindowController: NSWindowController {
         launchAtLoginManager: LaunchAtLoginManager,
         speedTestStore: SpeedTestStore,
         diagnosisStore: NetworkDiagnosisStore,
-        onFloatingBallToggle: @escaping (Bool) -> Void
+        onFloatingBallToggle: @escaping (Bool) -> Void,
+        onDesktopPetToggle: @escaping (Bool) -> Void
     ) {
         let rootView = ConfigurationView(
             preferences: preferences,
             launchAtLoginManager: launchAtLoginManager,
             speedTestStore: speedTestStore,
             diagnosisStore: diagnosisStore,
-            onFloatingBallToggle: onFloatingBallToggle
+            onFloatingBallToggle: onFloatingBallToggle,
+            onDesktopPetToggle: onDesktopPetToggle
         )
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
