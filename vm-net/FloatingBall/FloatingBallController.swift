@@ -140,8 +140,7 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate {
 
         contentView.render(
             uploadText: formatter.string(for: displayed.uploadBytesPerSecond),
-            downloadText: formatter.string(for: displayed.downloadBytesPerSecond),
-            isActive: displayed.isActive
+            downloadText: formatter.string(for: displayed.downloadBytesPerSecond)
         )
     }
 

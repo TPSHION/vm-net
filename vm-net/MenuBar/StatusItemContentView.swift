@@ -40,15 +40,12 @@ final class StatusItemContentView: NSView {
 
     func render(
         uploadText: String,
-        downloadText: String,
-        isActive: Bool
+        downloadText: String
     ) {
         uploadLabel.stringValue = uploadText
         downloadLabel.stringValue = downloadText
-
-        let alpha: CGFloat = isActive ? 1 : 0.72
-        uploadLabel.alphaValue = alpha
-        downloadLabel.alphaValue = alpha
+        uploadLabel.alphaValue = 1
+        downloadLabel.alphaValue = 1
     }
 
     private func setupView() {
