@@ -46,8 +46,6 @@ final class FloatingBallContentView: NSView {
     private var mouseDownScreenLocation: NSPoint?
     private var didDrag = false
 
-    var openHandler: (() -> Void)?
-
     override var intrinsicContentSize: NSSize {
         Layout.size
     }
@@ -139,8 +137,6 @@ final class FloatingBallContentView: NSView {
         }
 
         guard !didDrag else { return }
-
-        openHandler?()
     }
 
     override func rightMouseDown(with event: NSEvent) {

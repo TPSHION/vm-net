@@ -24,11 +24,7 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate {
     )
     private var cancellables: Set<AnyCancellable> = []
 
-    var openWindowHandler: (() -> Void)? {
-        didSet {
-            contentView.openHandler = openWindowHandler
-        }
-    }
+    var openWindowHandler: (() -> Void)?
 
     init(
         store: ThroughputStore,
