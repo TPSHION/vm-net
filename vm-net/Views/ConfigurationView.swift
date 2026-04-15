@@ -10,19 +10,44 @@ import SwiftUI
 
 struct ConfigurationView: View {
 
+    private enum Page {
+        case settings
+        case speedTest
+    }
+
     @ObservedObject var preferences: AppPreferences
     @ObservedObject var launchAtLoginManager: LaunchAtLoginManager
+    @ObservedObject var speedTestStore: SpeedTestStore
     let onFloatingBallToggle: (Bool) -> Void
+    @State private var page: Page = .settings
 
     var body: some View {
+        Group {
+            switch page {
+            case .settings:
+                settingsPage
+            case .speedTest:
+                speedTestPage
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(24)
+    }
+
+    private var settingsPage: some View {
         VStack(alignment: .leading, spacing: 18) {
             headerSection
             launchSection
             presentationSection
+            speedTestEntrySection
             Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(24)
+    }
+
+    private var speedTestPage: some View {
+        SpeedTestPageView(store: speedTestStore) {
+            page = .settings
+        }
     }
 
     private var headerSection: some View {
@@ -164,6 +189,43 @@ struct ConfigurationView: View {
             .padding(4)
         } label: {
             Text("展示")
+        }
+    }
+
+    private var speedTestEntrySection: some View {
+        GroupBox {
+            Button {
+                page = .speedTest
+            } label: {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("网络测速")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.primary)
+
+                        Text("进入专门页面，运行 M-Lab 下载与上传测速。")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer(minLength: 12)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.55))
+                )
+            }
+            .buttonStyle(.plain)
+            .padding(4)
+        } label: {
+            Text("功能")
         }
     }
 
