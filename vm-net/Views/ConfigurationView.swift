@@ -19,9 +19,7 @@ struct ConfigurationView: View {
             headerSection
             launchSection
             presentationSection
-            coreFeaturesSection
             Spacer(minLength: 0)
-            footerNote
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(24)
@@ -29,9 +27,6 @@ struct ConfigurationView: View {
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("vm-net")
-                .font(.system(size: 26, weight: .semibold))
-
             Text("默认常驻状态栏，也可以额外打开桌面悬浮胶囊。")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
@@ -169,60 +164,6 @@ struct ConfigurationView: View {
             .padding(4)
         } label: {
             Text("展示")
-        }
-    }
-
-    private var coreFeaturesSection: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 14) {
-                featureRow(
-                    icon: "capsule.portrait",
-                    title: "悬浮胶囊支持桌面常驻",
-                    detail: "开启后会记住位置，下次启动自动恢复。"
-                )
-                featureRow(
-                    icon: "xmark.square",
-                    title: "关闭窗口不会退出",
-                    detail: "关闭主窗口后，网速监控仍会继续运行。"
-                )
-                featureRow(
-                    icon: "arrow.up.left.and.arrow.down.right",
-                    title: "状态栏和胶囊共用同一份数据",
-                    detail: "只保留一条采样链路，避免重复监控。"
-                )
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(4)
-        } label: {
-            Text("核心功能")
-        }
-    }
-
-    private var footerNote: some View {
-        Text("登录项自动拉起时不会弹出主窗口；可从状态栏菜单或悬浮胶囊重新打开。")
-            .font(.system(size: 12))
-            .foregroundStyle(.secondary)
-    }
-
-    private func featureRow(
-        icon: String,
-        title: String,
-        detail: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 16, height: 16)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 13, weight: .medium))
-
-                Text(detail)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-            }
         }
     }
 

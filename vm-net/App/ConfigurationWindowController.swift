@@ -12,8 +12,8 @@ import SwiftUI
 final class ConfigurationWindowController: NSWindowController {
 
     private enum Layout {
-        static let defaultSize = NSSize(width: 560, height: 470)
-        static let minSize = NSSize(width: 520, height: 420)
+        static let defaultSize = NSSize(width: 560, height: 390)
+        static let minSize = NSSize(width: 520, height: 360)
     }
 
     init(
