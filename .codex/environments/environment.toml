@@ -1,0 +1,3 @@
+[actions.run]
+command = "./script/build_and_run.sh --verify"
+label = "Run"

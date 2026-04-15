@@ -11,7 +11,7 @@ import AppKit
 final class StatusItemController {
 
     private enum Layout {
-        static let statusItemWidth: CGFloat = 94
+        static let statusItemWidth: CGFloat = 68
     }
 
     private let statusItem: NSStatusItem
@@ -19,6 +19,10 @@ final class StatusItemController {
     private let contentView = StatusItemContentView()
     private let formatter = ByteRateFormatter()
     private let networkMonitor: NetworkMonitor
+    private let interfaceItem = NSMenuItem()
+    private let uploadItem = NSMenuItem()
+    private let downloadItem = NSMenuItem()
+    private let updatedAtItem = NSMenuItem()
 
     init(networkMonitor: NetworkMonitor = NetworkMonitor()) {
         self.statusItem = NSStatusBar.system.statusItem(
@@ -28,10 +32,10 @@ final class StatusItemController {
 
         configureMenu()
         configureButton()
-        render(.zero)
+        render(.idle)
 
-        self.networkMonitor.updateHandler = { [weak self] throughput in
-            self?.render(throughput)
+        self.networkMonitor.updateHandler = { [weak self] snapshot in
+            self?.render(snapshot)
         }
         self.networkMonitor.startMonitoring()
     }
@@ -41,6 +45,12 @@ final class StatusItemController {
     }
 
     private func configureMenu() {
+        [interfaceItem, uploadItem, downloadItem, updatedAtItem].forEach {
+            $0.isEnabled = false
+            menu.addItem($0)
+        }
+        menu.addItem(.separator())
+
         let quitItem = NSMenuItem(
             title: "Quit",
             action: #selector(NSApplication.terminate(_:)),
@@ -67,11 +77,38 @@ final class StatusItemController {
         ])
     }
 
-    private func render(_ throughput: NetworkThroughput) {
+    private func render(_ snapshot: NetworkMonitorSnapshot) {
+        let displayed = snapshot.displayedThroughput
+
         contentView.render(
-            uploadText: "\(formatter.string(for: throughput.uploadBytesPerSecond)) ↑",
+            uploadText:
+                "\(formatter.string(for: displayed.uploadBytesPerSecond)) ↑",
             downloadText:
-                "\(formatter.string(for: throughput.downloadBytesPerSecond)) ↓"
+                "\(formatter.string(for: displayed.downloadBytesPerSecond)) ↓",
+            isActive: displayed.isActive
         )
+
+        interfaceItem.title = snapshot.monitoredInterfaceName.map {
+            "Interface: \($0)"
+        } ?? "Interface: waiting for network"
+        uploadItem.title =
+            "Upload: \(formatter.string(for: displayed.uploadBytesPerSecond, style: .detailed))"
+        downloadItem.title =
+            "Download: \(formatter.string(for: displayed.downloadBytesPerSecond, style: .detailed))"
+        updatedAtItem.title = snapshot.lastUpdatedAt.map {
+            "Updated: \(Self.timeFormatter.string(from: $0))"
+        } ?? "Updated: --"
+
+        statusItem.button?.toolTip = snapshot.monitoredInterfaceName.map {
+            "Monitoring \($0)"
+        } ?? "Monitoring network throughput"
     }
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = .current
+        formatter.timeStyle = .medium
+        formatter.dateStyle = .none
+        return formatter
+    }()
 }
