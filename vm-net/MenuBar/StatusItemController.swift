@@ -19,16 +19,20 @@ final class StatusItemController {
     private let contentView = StatusItemContentView()
     private let formatter = ByteRateFormatter()
     private let networkMonitor: NetworkMonitor
-    private let interfaceItem = NSMenuItem()
-    private let uploadItem = NSMenuItem()
-    private let downloadItem = NSMenuItem()
-    private let updatedAtItem = NSMenuItem()
+    private let preferences: AppPreferences
+    private let openWindowItem = NSMenuItem()
 
-    init(networkMonitor: NetworkMonitor = NetworkMonitor()) {
+    var openWindowHandler: (() -> Void)?
+
+    init(
+        networkMonitor: NetworkMonitor = NetworkMonitor(),
+        preferences: AppPreferences
+    ) {
         self.statusItem = NSStatusBar.system.statusItem(
             withLength: Layout.statusItemWidth
         )
         self.networkMonitor = networkMonitor
+        self.preferences = preferences
 
         configureMenu()
         configureButton()
@@ -45,10 +49,10 @@ final class StatusItemController {
     }
 
     private func configureMenu() {
-        [interfaceItem, uploadItem, downloadItem, updatedAtItem].forEach {
-            $0.isEnabled = false
-            menu.addItem($0)
-        }
+        openWindowItem.title = "Open vm-net"
+        openWindowItem.action = #selector(handleOpenWindow)
+        openWindowItem.target = self
+        menu.addItem(openWindowItem)
         menu.addItem(.separator())
 
         let quitItem = NSMenuItem(
@@ -78,7 +82,7 @@ final class StatusItemController {
     }
 
     private func render(_ snapshot: NetworkMonitorSnapshot) {
-        let displayed = snapshot.displayedThroughput
+        let displayed = preferences.displayMode.throughput(from: snapshot)
 
         contentView.render(
             uploadText:
@@ -88,27 +92,13 @@ final class StatusItemController {
             isActive: displayed.isActive
         )
 
-        interfaceItem.title = snapshot.monitoredInterfaceName.map {
-            "Interface: \($0)"
-        } ?? "Interface: waiting for network"
-        uploadItem.title =
-            "Upload: \(formatter.string(for: displayed.uploadBytesPerSecond, style: .detailed))"
-        downloadItem.title =
-            "Download: \(formatter.string(for: displayed.downloadBytesPerSecond, style: .detailed))"
-        updatedAtItem.title = snapshot.lastUpdatedAt.map {
-            "Updated: \(Self.timeFormatter.string(from: $0))"
-        } ?? "Updated: --"
-
         statusItem.button?.toolTip = snapshot.monitoredInterfaceName.map {
             "Monitoring \($0)"
         } ?? "Monitoring network throughput"
     }
 
-    private static let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = .current
-        formatter.timeStyle = .medium
-        formatter.dateStyle = .none
-        return formatter
-    }()
+    @objc
+    private func handleOpenWindow() {
+        openWindowHandler?()
+    }
 }
