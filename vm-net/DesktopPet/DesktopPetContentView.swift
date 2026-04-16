@@ -23,8 +23,6 @@ private extension CGRect {
 final class DesktopPetContentView: NSView {
 
     private enum Timing {
-        static let ambientInitialDelay: ClosedRange<TimeInterval> = 1.5...3.0
-        static let ambientDelay: ClosedRange<TimeInterval> = 4.0...7.5
         static let ambientStepDelay: TimeInterval = 0.08
         static let ambientResumeDelay: TimeInterval = 2.4
     }
@@ -101,23 +99,19 @@ final class DesktopPetContentView: NSView {
         invalidateIntrinsicContentSize()
         applyLayout()
         rebuildRiveView()
-
-        if ambientInteractionEnabled {
-            isUserInteracting = false
-            scheduleAmbientInteraction(
-                after: TimeInterval.random(in: Timing.ambientInitialDelay)
-            )
-        }
+        ambientInteractionTimer?.invalidate()
+        ambientInteractionTimer = nil
+        isUserInteracting = false
     }
 
     func setAmbientInteractionEnabled(_ isEnabled: Bool) {
         ambientInteractionEnabled = isEnabled
 
         if isEnabled {
+            ambientInteractionTimer?.invalidate()
+            ambientInteractionTimer = nil
+            userInteractionResumeWorkItem?.cancel()
             isUserInteracting = false
-            scheduleAmbientInteraction(
-                after: TimeInterval.random(in: Timing.ambientInitialDelay)
-            )
         } else {
             ambientInteractionTimer?.invalidate()
             ambientInteractionTimer = nil
@@ -126,6 +120,19 @@ final class DesktopPetContentView: NSView {
             isUserInteracting = false
             isDraggingInteractiveElement = false
         }
+    }
+
+    func playMovementGuide(toward vector: CGVector) {
+        guard
+            ambientInteractionEnabled,
+            !isUserInteracting,
+            window?.isVisible == true,
+            let path = makeMovementGuidePath(toward: vector)
+        else {
+            return
+        }
+
+        playSyntheticInteraction(path: path)
     }
 
     override func updateTrackingAreas() {
@@ -307,38 +314,6 @@ final class DesktopPetContentView: NSView {
         }
     }
 
-    private func scheduleAmbientInteraction(after delay: TimeInterval) {
-        ambientInteractionTimer?.invalidate()
-
-        guard ambientInteractionEnabled, !isUserInteracting else { return }
-
-        ambientInteractionTimer = Timer.scheduledTimer(
-            withTimeInterval: delay,
-            repeats: false
-        ) { [weak self] _ in
-            self?.performAmbientInteractionIfPossible()
-        }
-    }
-
-    private func performAmbientInteractionIfPossible() {
-        defer {
-            scheduleAmbientInteraction(
-                after: TimeInterval.random(in: Timing.ambientDelay)
-            )
-        }
-
-        guard
-            ambientInteractionEnabled,
-            !isUserInteracting,
-            window?.isVisible == true,
-            let path = makeAmbientPath()
-        else {
-            return
-        }
-
-        playSyntheticInteraction(path: path)
-    }
-
     private func playSyntheticInteraction(path: [CGPoint]) {
         guard !path.isEmpty else { return }
 
@@ -364,26 +339,66 @@ final class DesktopPetContentView: NSView {
         }
     }
 
-    private func makeAmbientPath() -> [CGPoint]? {
+    private func makeMovementGuidePath(toward vector: CGVector) -> [CGPoint]? {
         guard let orbit = asset.ambientOrbit else { return nil }
 
-        let direction: CGFloat = Bool.random() ? 1 : -1
-        let startAngle = CGFloat.random(in: 0...(2 * .pi))
-        let sweep = CGFloat.random(in: orbit.sweep) * direction
-        let center = CGPoint(
-            x: orbit.center.x + CGFloat.random(in: orbit.centerJitterX),
-            y: orbit.center.y + CGFloat.random(in: orbit.centerJitterY)
+        let length = max(hypot(vector.dx, vector.dy), 0.001)
+        let unitX = vector.dx / length
+        let unitY = vector.dy / length
+        let lateralX = -unitY
+        let lateralY = unitX
+
+        let bodyCenter = orbit.bodyCenter
+        let bodyEdgeDistance = ellipseRadius(
+            forUnitX: unitX,
+            unitY: unitY,
+            halfWidth: orbit.bodyHalfWidth,
+            halfHeight: orbit.bodyHalfHeight
         )
-        let radiusX = CGFloat.random(in: orbit.radiusX)
-        let radiusY = CGFloat.random(in: orbit.radiusY)
+        let startDistance = bodyEdgeDistance + orbit.leadPadding
+        let apexPoint = CGPoint(
+            x: bodyCenter.x + unitX * startDistance,
+            y: bodyCenter.y + unitY * startDistance
+        )
+        let forwardDistance = max(
+            CGFloat.random(in: orbit.radiusX),
+            CGFloat.random(in: orbit.radiusY)
+        ) * orbit.leadDistanceMultiplier
+        let lateralDistance = CGFloat.random(
+            in: (orbit.radiusY.lowerBound * 0.18)...max(orbit.radiusY.upperBound * 0.36, orbit.radiusY.lowerBound * 0.18)
+        )
+        let midDistance = forwardDistance * 0.34
+        let farDistance = forwardDistance * 0.68
+        let endDistance = forwardDistance
 
-        return (0..<orbit.pointCount).map { index in
-            let progress = CGFloat(index) / CGFloat(max(orbit.pointCount - 1, 1))
-            let angle = startAngle + (sweep * progress)
+        let rawPoints: [CGPoint] = [
+            apexPoint,
+            CGPoint(
+                x: apexPoint.x + unitX * midDistance + lateralX * (lateralDistance * 0.55),
+                y: apexPoint.y + unitY * midDistance + lateralY * (lateralDistance * 0.55)
+            ),
+            CGPoint(
+                x: apexPoint.x + unitX * farDistance - lateralX * (lateralDistance * 0.35),
+                y: apexPoint.y + unitY * farDistance - lateralY * (lateralDistance * 0.35)
+            ),
+            CGPoint(
+                x: apexPoint.x + unitX * endDistance + lateralX * (lateralDistance * 0.16),
+                y: apexPoint.y + unitY * endDistance + lateralY * (lateralDistance * 0.16)
+            ),
+            CGPoint(
+                x: apexPoint.x + unitX * (endDistance * 1.12),
+                y: apexPoint.y + unitY * (endDistance * 1.12)
+            ),
+            CGPoint(
+                x: apexPoint.x + unitX * (endDistance * 1.24),
+                y: apexPoint.y + unitY * (endDistance * 1.24)
+            )
+        ]
 
-            return CGPoint(
-                x: clamp(center.x + cos(angle) * radiusX, to: orbit.xBounds),
-                y: clamp(center.y + sin(angle) * radiusY, to: orbit.yBounds)
+        return rawPoints.map { point in
+            CGPoint(
+                x: clamp(point.x, to: orbit.xBounds),
+                y: clamp(point.y, to: orbit.yBounds)
             )
         }
     }
@@ -439,6 +454,26 @@ final class DesktopPetContentView: NSView {
         to bounds: ClosedRange<CGFloat>
     ) -> CGFloat {
         min(max(value, bounds.lowerBound), bounds.upperBound)
+    }
+
+    private func ellipseRadius(
+        forUnitX unitX: CGFloat,
+        unitY: CGFloat,
+        halfWidth: CGFloat,
+        halfHeight: CGFloat
+    ) -> CGFloat {
+        let safeHalfWidth = max(halfWidth, 0.001)
+        let safeHalfHeight = max(halfHeight, 0.001)
+        let denominator = sqrt(
+            ((unitX * unitX) / (safeHalfWidth * safeHalfWidth))
+            + ((unitY * unitY) / (safeHalfHeight * safeHalfHeight))
+        )
+
+        guard denominator > 0 else {
+            return max(safeHalfWidth, safeHalfHeight)
+        }
+
+        return 1 / denominator
     }
 
     private var interactionRect: CGRect {
@@ -567,9 +602,6 @@ final class DesktopPetContentView: NSView {
         let workItem = DispatchWorkItem { [weak self] in
             guard let self, self.ambientInteractionEnabled else { return }
             self.isUserInteracting = false
-            self.scheduleAmbientInteraction(
-                after: TimeInterval.random(in: Timing.ambientDelay)
-            )
         }
         userInteractionResumeWorkItem = workItem
 

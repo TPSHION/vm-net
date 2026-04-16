@@ -10,6 +10,10 @@ import AppKit
 @MainActor
 final class PetOverlayController: NSWindowController {
 
+    private enum Input {
+        static let floatingBallProtectionPadding: CGFloat = 10
+    }
+
     private let rootView = PetOverlayPassthroughView()
     private let actorController: PetActorController
     private var asset: DesktopPetAsset
@@ -32,7 +36,9 @@ final class PetOverlayController: NSWindowController {
         configurePanel(panel)
         actorController.attach(to: rootView)
         actorController.originDidChange = { [weak self] origin in
-            self?.window?.setFrameOrigin(origin)
+            guard let self, let window = self.window else { return }
+            window.setFrameOrigin(origin)
+            self.updateInputPassthrough(for: window.frame)
         }
         rootView.actorView = actorController.view
     }
@@ -69,6 +75,7 @@ final class PetOverlayController: NSWindowController {
             homeOrigin: homeAnchor?.preferredOrigin(for: asset)
         )
         actorController.start()
+        updateInputPassthrough(for: window.frame)
 
         if !window.isVisible {
             showWindow(nil)
@@ -117,6 +124,21 @@ final class PetOverlayController: NSWindowController {
             width: max(safeVisibleFrame.width - asset.layout.panelSize.width, 1),
             height: max(safeVisibleFrame.height - asset.layout.panelSize.height, 1)
         )
+    }
+
+    private func updateInputPassthrough(for petFrame: CGRect) {
+        guard let panel = window as? PetOverlayPanel else { return }
+
+        let shouldProtectFloatingBall =
+            currentHomeAnchor?
+            .frame
+            .insetBy(
+                dx: -Input.floatingBallProtectionPadding,
+                dy: -Input.floatingBallProtectionPadding
+            )
+            .intersects(petFrame) == true
+
+        panel.ignoresMouseEvents = shouldProtectFloatingBall
     }
 }
 

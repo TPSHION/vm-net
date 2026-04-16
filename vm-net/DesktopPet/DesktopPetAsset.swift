@@ -20,12 +20,15 @@ struct DesktopPetAttachmentLayout {
 }
 
 struct DesktopPetAmbientOrbit {
-    let center: CGPoint
+    let bodyCenter: CGPoint
     let centerJitterX: ClosedRange<CGFloat>
     let centerJitterY: ClosedRange<CGFloat>
+    let bodyHalfWidth: CGFloat
+    let bodyHalfHeight: CGFloat
+    let leadPadding: CGFloat
+    let leadDistanceMultiplier: CGFloat
     let radiusX: ClosedRange<CGFloat>
     let radiusY: ClosedRange<CGFloat>
-    let sweep: ClosedRange<CGFloat>
     let pointCount: Int
     let xBounds: ClosedRange<CGFloat>
     let yBounds: ClosedRange<CGFloat>
@@ -112,20 +115,23 @@ enum DesktopPetCatalog {
                 migrationTargetArrivalThreshold: 120,
                 migrationRetargetAfterSegments: 4...8,
                 idleDuration: 0.9...2.1,
-                restAtHomeDuration: 1.4...2.8,
+                restAtHomeDuration: 300...480,
                 wanderCycleBeforeHome: 4...7,
                 arrivalThreshold: 10
             ),
             ambientOrbit: DesktopPetAmbientOrbit(
-                center: CGPoint(x: 0.47, y: 0.80),
-                centerJitterX: -0.05...0.05,
-                centerJitterY: -0.04...0.04,
+                bodyCenter: CGPoint(x: 0.40, y: 0.48),
+                centerJitterX: -0.03...0.03,
+                centerJitterY: -0.03...0.03,
+                bodyHalfWidth: 0.28,
+                bodyHalfHeight: 0.30,
+                leadPadding: 0.16,
+                leadDistanceMultiplier: 4.0,
                 radiusX: 0.18...0.30,
                 radiusY: 0.12...0.22,
-                sweep: (.pi * 0.55)...(.pi * 1.0),
                 pointCount: 6,
-                xBounds: 0.16...0.82,
-                yBounds: 0.58...0.94
+                xBounds: 0.08...0.92,
+                yBounds: 0.54...0.96
             )
         )
     }

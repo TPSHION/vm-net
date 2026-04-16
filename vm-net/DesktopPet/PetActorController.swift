@@ -12,6 +12,7 @@ final class PetActorController {
 
     private enum Timing {
         static let tickInterval: TimeInterval = 1.0 / 30.0
+        static let wanderGuideLeadDelay: TimeInterval = 0.42
     }
 
     let view: DesktopPetContentView
@@ -29,6 +30,7 @@ final class PetActorController {
     private var currentSpeed: CGFloat = 0
     private var state: PetBehaviorState = .restAtHome
     private var stateDeadline: Date?
+    private var movementStartDate: Date?
     private var hasInitializedPlan = false
 
     init(asset: DesktopPetAsset) {
@@ -120,6 +122,7 @@ final class PetActorController {
     func stop() {
         tickTimer?.invalidate()
         tickTimer = nil
+        movementStartDate = nil
         view.setAmbientInteractionEnabled(false)
     }
 
@@ -144,6 +147,10 @@ final class PetActorController {
         guard !view.hasActiveInteraction else { return }
 
         if state.isMoving {
+            if let movementStartDate, Date() < movementStartDate {
+                return
+            }
+            self.movementStartDate = nil
             advanceMovement(by: Timing.tickInterval)
             return
         }
@@ -206,7 +213,21 @@ final class PetActorController {
 
         if state.isMoving {
             stateDeadline = nil
+            if state == .wander {
+                view.playMovementGuide(
+                    toward: CGVector(
+                        dx: destinationOrigin.x - currentOrigin.x,
+                        dy: destinationOrigin.y - currentOrigin.y
+                    )
+                )
+                movementStartDate = Date().addingTimeInterval(
+                    Timing.wanderGuideLeadDelay
+                )
+            } else {
+                movementStartDate = nil
+            }
         } else {
+            movementStartDate = nil
             currentOrigin = destinationOrigin
             stateDeadline = plan.dwellDuration.map {
                 Date().addingTimeInterval($0)

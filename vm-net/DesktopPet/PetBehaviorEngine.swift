@@ -37,6 +37,7 @@ struct PetBehaviorEngine {
     private var nextReturnThreshold: Int
     private var migrationTarget: CGPoint?
     private var remainingMigrationSegments = 0
+    private var isReturningHome = false
 
     init(profile: DesktopPetBehaviorProfile) {
         self.profile = profile
@@ -49,6 +50,7 @@ struct PetBehaviorEngine {
         nextReturnThreshold = Int.random(in: profile.wanderCycleBeforeHome)
         migrationTarget = nil
         remainingMigrationSegments = 0
+        isReturningHome = false
     }
 
     mutating func initialPlan(
@@ -68,7 +70,7 @@ struct PetBehaviorEngine {
             state: .idle,
             destination: randomOrigin(in: movementBounds),
             speed: 0,
-            dwellDuration: TimeInterval.random(in: profile.idleDuration)
+            dwellDuration: wanderIdleDuration
         )
     }
 
@@ -87,14 +89,45 @@ struct PetBehaviorEngine {
 
         case .idle:
             if
+                isReturningHome,
+                let homeOrigin
+            {
+                let clampedHomeOrigin = clamp(homeOrigin, to: movementBounds)
+
+                if distance(from: currentOrigin, to: clampedHomeOrigin)
+                    <= homeArrivalThreshold
+                {
+                    completedWanderCycles = 0
+                    nextReturnThreshold = Int.random(in: profile.wanderCycleBeforeHome)
+                    migrationTarget = nil
+                    remainingMigrationSegments = 0
+                    isReturningHome = false
+                    return PetBehaviorPlan(
+                        state: .restAtHome,
+                        destination: clampedHomeOrigin,
+                        speed: 0,
+                        dwellDuration: TimeInterval.random(in: profile.restAtHomeDuration)
+                    )
+                }
+
+                return makeHomewardPlan(
+                    from: currentOrigin,
+                    homeOrigin: clampedHomeOrigin,
+                    in: movementBounds
+                )
+            }
+
+            if
                 let homeOrigin,
                 completedWanderCycles >= nextReturnThreshold
             {
-                return PetBehaviorPlan(
-                    state: .goHome,
-                    destination: clamp(homeOrigin, to: movementBounds),
-                    speed: CGFloat.random(in: profile.movementSpeed),
-                    dwellDuration: nil
+                migrationTarget = nil
+                remainingMigrationSegments = 0
+                isReturningHome = true
+                return makeHomewardPlan(
+                    from: currentOrigin,
+                    homeOrigin: clamp(homeOrigin, to: movementBounds),
+                    in: movementBounds
                 )
             }
 
@@ -109,22 +142,15 @@ struct PetBehaviorEngine {
                 state: .idle,
                 destination: clamp(currentOrigin, to: movementBounds),
                 speed: 0,
-                dwellDuration: TimeInterval.random(in: profile.idleDuration)
+                dwellDuration: wanderIdleDuration
             )
 
         case .goHome:
-            completedWanderCycles = 0
-            nextReturnThreshold = Int.random(in: profile.wanderCycleBeforeHome)
-            migrationTarget = nil
-            remainingMigrationSegments = 0
             return PetBehaviorPlan(
-                state: .restAtHome,
-                destination: clamp(
-                    homeOrigin ?? currentOrigin,
-                    to: movementBounds
-                ),
+                state: .idle,
+                destination: clamp(currentOrigin, to: movementBounds),
                 speed: 0,
-                dwellDuration: TimeInterval.random(in: profile.restAtHomeDuration)
+                dwellDuration: returnHomeIdleDuration
             )
         }
     }
@@ -155,6 +181,42 @@ struct PetBehaviorEngine {
 
         return PetBehaviorPlan(
             state: .wander,
+            destination: target,
+            speed: CGFloat.random(in: profile.movementSpeed),
+            dwellDuration: nil
+        )
+    }
+
+    private func makeHomewardPlan(
+        from currentOrigin: CGPoint,
+        homeOrigin: CGPoint,
+        in movementBounds: CGRect
+    ) -> PetBehaviorPlan {
+        let clampedHomeOrigin = clamp(homeOrigin, to: movementBounds)
+        let target: CGPoint
+
+        if distance(from: currentOrigin, to: clampedHomeOrigin) <= homeArrivalThreshold {
+            target = clampedHomeOrigin
+        } else {
+            var candidate = randomHomewardStep(
+                from: currentOrigin,
+                toward: clampedHomeOrigin,
+                in: movementBounds
+            )
+
+            for _ in 0..<4 where distance(from: currentOrigin, to: candidate) < 44 {
+                candidate = randomHomewardStep(
+                    from: currentOrigin,
+                    toward: clampedHomeOrigin,
+                    in: movementBounds
+                )
+            }
+
+            target = candidate
+        }
+
+        return PetBehaviorPlan(
+            state: .goHome,
             destination: target,
             speed: CGFloat.random(in: profile.movementSpeed),
             dwellDuration: nil
@@ -263,6 +325,77 @@ struct PetBehaviorEngine {
             y: currentOrigin.y + sin(heading) * fallbackDistance
         )
         return clamp(fallbackCandidate, to: movementBounds)
+    }
+
+    private func randomHomewardStep(
+        from currentOrigin: CGPoint,
+        toward homeOrigin: CGPoint,
+        in movementBounds: CGRect
+    ) -> CGPoint {
+        let heading = atan2(
+            homeOrigin.y - currentOrigin.y,
+            homeOrigin.x - currentOrigin.x
+        )
+        let jitterMagnitude = max(
+            abs(profile.migrationHeadingJitter.lowerBound),
+            abs(profile.migrationHeadingJitter.upperBound)
+        ) * 0.55
+        let jitterRange = (-jitterMagnitude)...jitterMagnitude
+
+        for _ in 0..<5 {
+            let direction = heading + CGFloat.random(in: jitterRange)
+            let stepDistance = min(
+                CGFloat.random(in: profile.wanderStepDistance),
+                distance(from: currentOrigin, to: homeOrigin)
+            )
+            let candidate = clamp(
+                CGPoint(
+                    x: currentOrigin.x + cos(direction) * stepDistance,
+                    y: currentOrigin.y + sin(direction) * stepDistance
+                ),
+                to: movementBounds
+            )
+
+            let stepProgress = distance(from: currentOrigin, to: candidate)
+            if stepProgress < 32 {
+                continue
+            }
+
+            if distance(from: candidate, to: homeOrigin)
+                < distance(from: currentOrigin, to: homeOrigin)
+            {
+                return candidate
+            }
+        }
+
+        let fallbackDistance = min(
+            CGFloat.random(in: profile.wanderStepDistance),
+            distance(from: currentOrigin, to: homeOrigin)
+        )
+        let fallbackCandidate = CGPoint(
+            x: currentOrigin.x + cos(heading) * fallbackDistance,
+            y: currentOrigin.y + sin(heading) * fallbackDistance
+        )
+        return clamp(fallbackCandidate, to: movementBounds)
+    }
+
+    private var homeArrivalThreshold: CGFloat {
+        max(
+            profile.arrivalThreshold * 4,
+            profile.wanderStepDistance.lowerBound * 0.65
+        )
+    }
+
+    private var wanderIdleDuration: TimeInterval {
+        let lowerBound = profile.idleDuration.lowerBound * 4
+        let upperBound = profile.idleDuration.upperBound * 4
+        return TimeInterval.random(in: lowerBound...upperBound)
+    }
+
+    private var returnHomeIdleDuration: TimeInterval {
+        let lowerBound = profile.idleDuration.lowerBound * 1.45
+        let upperBound = profile.idleDuration.upperBound * 1.95
+        return TimeInterval.random(in: lowerBound...upperBound)
     }
 
     private func clamp(_ point: CGPoint, to movementBounds: CGRect) -> CGPoint {
