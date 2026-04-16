@@ -14,6 +14,7 @@ struct ConfigurationView: View {
         case settings
         case speedTest
         case diagnosis
+        case desktopPet
     }
 
     @ObservedObject var preferences: AppPreferences
@@ -33,6 +34,8 @@ struct ConfigurationView: View {
                 speedTestPage
             case .diagnosis:
                 diagnosisPage
+            case .desktopPet:
+                desktopPetPage
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -66,6 +69,12 @@ struct ConfigurationView: View {
 
     private var diagnosisPage: some View {
         NetworkDiagnosisPageView(store: diagnosisStore) {
+            page = .settings
+        }
+    }
+
+    private var desktopPetPage: some View {
+        DesktopPetSettingsPageView(preferences: preferences) {
             page = .settings
         }
     }
@@ -131,12 +140,14 @@ struct ConfigurationView: View {
                         Text("桌面宠物")
                             .font(.system(size: 13, weight: .medium))
 
-                        Text("在悬浮胶囊旁边显示 Cute Interactive Robot。")
+                        Text("在悬浮胶囊旁边显示 \(preferences.desktopPetAsset.displayName)。")
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                     }
                 }
                 .toggleStyle(.switch)
+
+                desktopPetEntryButton
 
                 if preferences.showDesktopPet && !preferences.showInFloatingBall {
                     Text("桌面宠物会跟随悬浮胶囊显示；当前胶囊关闭，所以宠物会先保持隐藏。")
@@ -457,6 +468,15 @@ struct ConfigurationView: View {
             subtitle: "进入专门页面，运行 M-Lab 下载与上传测速。"
         ) {
             page = .speedTest
+        }
+    }
+
+    private var desktopPetEntryButton: some View {
+        featureEntryButton(
+            title: "桌宠配置",
+            subtitle: "进入专门页面，预览 \(preferences.desktopPetAsset.displayName) 并管理桌宠显示。"
+        ) {
+            page = .desktopPet
         }
     }
 

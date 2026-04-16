@@ -68,6 +68,7 @@ final class AppPreferences: ObservableObject {
         static let displayMode = "cn.tpshion.vm-net.display-mode"
         static let showInFloatingBall = "cn.tpshion.vm-net.show-in-floating-ball"
         static let showDesktopPet = "cn.tpshion.vm-net.show-desktop-pet"
+        static let desktopPetAssetID = "cn.tpshion.vm-net.desktop-pet-asset-id"
         static let floatingBallBackgroundColor =
             "cn.tpshion.vm-net.floating-ball-background-color"
         static let floatingBallTextColor =
@@ -101,6 +102,12 @@ final class AppPreferences: ObservableObject {
     @Published var showDesktopPet: Bool {
         didSet {
             defaults.set(showDesktopPet, forKey: Keys.showDesktopPet)
+        }
+    }
+
+    @Published var desktopPetAssetID: DesktopPetAssetID {
+        didSet {
+            defaults.set(desktopPetAssetID.rawValue, forKey: Keys.desktopPetAssetID)
         }
     }
 
@@ -166,6 +173,10 @@ final class AppPreferences: ObservableObject {
         return CGPoint(x: floatingBallOriginX, y: floatingBallOriginY)
     }
 
+    var desktopPetAsset: DesktopPetAsset {
+        DesktopPetCatalog.asset(for: desktopPetAssetID)
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
@@ -179,6 +190,9 @@ final class AppPreferences: ObservableObject {
         ) ?? .realtime
         self.showInFloatingBall = storedShowInFloatingBall
         self.showDesktopPet = storedShowDesktopPet
+        self.desktopPetAssetID = DesktopPetAssetID(
+            rawValue: defaults.string(forKey: Keys.desktopPetAssetID) ?? ""
+        ) ?? DesktopPetCatalog.defaultAssetID
         self.floatingBallBackgroundColor = Self.loadBackgroundColor(from: defaults)
         self.floatingBallTextColor = Self.loadColor(
             from: defaults,

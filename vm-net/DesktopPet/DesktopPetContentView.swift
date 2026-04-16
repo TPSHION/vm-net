@@ -9,12 +9,6 @@ import AppKit
 import MetalKit
 import RiveRuntime
 
-enum DesktopPetMetrics {
-    static let size = NSSize(width: 184, height: 184)
-    static let backdropSize = NSSize(width: 128, height: 128)
-    static let cornerRadius: CGFloat = 64
-}
-
 private extension CGRect {
     func expanded(by insets: NSEdgeInsets) -> CGRect {
         CGRect(
@@ -28,56 +22,34 @@ private extension CGRect {
 
 final class DesktopPetContentView: NSView {
 
-    static let petSize = DesktopPetMetrics.size
-
-    private enum Layout {
-        static let backdropSize = DesktopPetMetrics.backdropSize
-        static let riveInset = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
-        static let cornerRadius = DesktopPetMetrics.cornerRadius
+    private enum Timing {
         static let ambientInitialDelay: ClosedRange<TimeInterval> = 1.5...3.0
         static let ambientDelay: ClosedRange<TimeInterval> = 4.0...7.5
         static let ambientStepDelay: TimeInterval = 0.08
         static let ambientResumeDelay: TimeInterval = 2.4
-        static let interactionInset = NSEdgeInsets(top: -10, left: -12, bottom: -8, right: -12)
     }
 
-    private enum AmbientPath {
-        static let center = CGPoint(x: 0.50, y: 0.82)
-        static let centerJitterX: ClosedRange<CGFloat> = -0.06...0.06
-        static let centerJitterY: ClosedRange<CGFloat> = -0.04...0.04
-        static let radiusX: ClosedRange<CGFloat> = 0.16...0.30
-        static let radiusY: ClosedRange<CGFloat> = 0.10...0.20
-        static let sweep: ClosedRange<CGFloat> = (.pi * 0.65)...(.pi * 1.2)
-        static let pointCount = 6
-        static let xBounds: ClosedRange<CGFloat> = 0.18...0.82
-        static let yBounds: ClosedRange<CGFloat> = 0.66...0.99
-    }
+    private(set) var asset: DesktopPetAsset
 
-    private enum Asset {
-        static let fileName = "blobby-cat"
-        static let artboardName = "Cat Artboard"
-        static let stateMachineName: String? = nil
-    }
-
-    private let viewModel = RiveViewModel(
-        fileName: Asset.fileName,
-        stateMachineName: Asset.stateMachineName,
-        fit: .contain,
-        alignment: .center,
-        autoPlay: true,
-        artboardName: Asset.artboardName,
-        loadCdn: false
-    )
-    private let riveView: RiveView
     private let backdropView = NSView()
+    private var viewModel: RiveViewModel?
+    private var riveView: RiveView?
     private var ambientInteractionTimer: Timer?
     private var ambientInteractionEnabled = false
     private var trackingArea: NSTrackingArea?
     private var userInteractionResumeWorkItem: DispatchWorkItem?
     private var isUserInteracting = false
+    private var isDraggingInteractiveElement = false
+
+    private var backdropWidthConstraint: NSLayoutConstraint?
+    private var backdropHeightConstraint: NSLayoutConstraint?
+    private var riveLeadingConstraint: NSLayoutConstraint?
+    private var riveTrailingConstraint: NSLayoutConstraint?
+    private var riveTopConstraint: NSLayoutConstraint?
+    private var riveBottomConstraint: NSLayoutConstraint?
 
     override var intrinsicContentSize: NSSize {
-        Self.petSize
+        asset.layout.panelSize
     }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
@@ -86,21 +58,24 @@ final class DesktopPetContentView: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        enforceTransparency()
+        enforceTransparentRendering()
     }
 
     override func layout() {
         super.layout()
-        enforceTransparency()
+        enforceTransparentRendering()
     }
 
-    override init(frame frameRect: NSRect) {
-        self.riveView = viewModel.createRiveView()
+    init(frame frameRect: NSRect, asset: DesktopPetAsset) {
+        self.asset = asset
         super.init(frame: frameRect)
 
         setupView()
+        rebuildRiveView()
+        applyLayout()
     }
 
+    @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -108,8 +83,23 @@ final class DesktopPetContentView: NSView {
     deinit {
         ambientInteractionTimer?.invalidate()
         userInteractionResumeWorkItem?.cancel()
-        viewModel.pause()
-        viewModel.deregisterView()
+        tearDownRiveView()
+    }
+
+    func applyAsset(_ asset: DesktopPetAsset) {
+        guard self.asset.id != asset.id else { return }
+
+        self.asset = asset
+        invalidateIntrinsicContentSize()
+        applyLayout()
+        rebuildRiveView()
+
+        if ambientInteractionEnabled {
+            isUserInteracting = false
+            scheduleAmbientInteraction(
+                after: TimeInterval.random(in: Timing.ambientInitialDelay)
+            )
+        }
     }
 
     func setAmbientInteractionEnabled(_ isEnabled: Bool) {
@@ -118,7 +108,7 @@ final class DesktopPetContentView: NSView {
         if isEnabled {
             isUserInteracting = false
             scheduleAmbientInteraction(
-                after: TimeInterval.random(in: Layout.ambientInitialDelay)
+                after: TimeInterval.random(in: Timing.ambientInitialDelay)
             )
         } else {
             ambientInteractionTimer?.invalidate()
@@ -126,6 +116,7 @@ final class DesktopPetContentView: NSView {
             userInteractionResumeWorkItem?.cancel()
             userInteractionResumeWorkItem = nil
             isUserInteracting = false
+            isDraggingInteractiveElement = false
         }
     }
 
@@ -147,37 +138,36 @@ final class DesktopPetContentView: NSView {
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        interactionRect.contains(point) ? self : nil
+        guard ambientInteractionEnabled || isDraggingInteractiveElement else {
+            return nil
+        }
+
+        if isDraggingInteractiveElement {
+            return self
+        }
+
+        return pointerCaptureRect?.contains(point) == true ? self : nil
     }
 
     override func mouseDown(with event: NSEvent) {
-        handleUserMouseEvent(event) {
-            riveView.mouseDown(with: $0)
-        }
+        beginInteractiveDragIfPossible(with: event)
     }
 
     override func mouseDragged(with event: NSEvent) {
-        handleUserMouseEvent(event) {
-            riveView.mouseDragged(with: $0)
-        }
+        continueInteractiveDragIfNeeded(with: event)
     }
 
     override func mouseMoved(with event: NSEvent) {
-        handleUserMouseEvent(event) {
-            riveView.mouseMoved(with: $0)
-        }
+        guard isDraggingInteractiveElement else { return }
+        continueInteractiveDragIfNeeded(with: event)
     }
 
     override func mouseUp(with event: NSEvent) {
-        handleUserMouseEvent(event) {
-            riveView.mouseUp(with: $0)
-        }
+        endInteractiveDragIfNeeded(with: event)
     }
 
     override func mouseExited(with event: NSEvent) {
-        handleUserMouseEvent(event) {
-            riveView.mouseExited(with: $0)
-        }
+        cancelInteractiveDragIfNeeded(with: event)
     }
 
     private func setupView() {
@@ -187,51 +177,100 @@ final class DesktopPetContentView: NSView {
 
         backdropView.translatesAutoresizingMaskIntoConstraints = false
         backdropView.wantsLayer = true
-        backdropView.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.16)
-            .cgColor
-        backdropView.layer?.cornerRadius = Layout.cornerRadius
-        backdropView.layer?.shadowColor = NSColor.black.withAlphaComponent(0.28).cgColor
-        backdropView.layer?.shadowOpacity = 1
-        backdropView.layer?.shadowRadius = 8
-        backdropView.layer?.shadowOffset = CGSize(width: 0, height: -1)
+        addSubview(backdropView)
 
+        backdropWidthConstraint = backdropView.widthAnchor.constraint(equalToConstant: 0)
+        backdropHeightConstraint = backdropView.heightAnchor.constraint(equalToConstant: 0)
+
+        NSLayoutConstraint.activate([
+            backdropView.centerXAnchor.constraint(equalTo: centerXAnchor),
+            backdropView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            backdropWidthConstraint!,
+            backdropHeightConstraint!,
+        ])
+    }
+
+    private func rebuildRiveView() {
+        tearDownRiveView()
+
+        let viewModel = RiveViewModel(
+            fileName: asset.fileName,
+            stateMachineName: asset.stateMachineName,
+            fit: .contain,
+            alignment: .center,
+            autoPlay: true,
+            artboardName: asset.artboardName,
+            loadCdn: false
+        )
+        let riveView = viewModel.createRiveView()
         riveView.translatesAutoresizingMaskIntoConstraints = false
         riveView.wantsLayer = true
         riveView.layer?.backgroundColor = NSColor.clear.cgColor
         riveView.layer?.isOpaque = false
 
-        addSubview(backdropView)
         addSubview(riveView)
 
-        NSLayoutConstraint.activate([
-            backdropView.centerXAnchor.constraint(equalTo: centerXAnchor),
-            backdropView.centerYAnchor.constraint(equalTo: centerYAnchor),
-            backdropView.widthAnchor.constraint(equalToConstant: Layout.backdropSize.width),
-            backdropView.heightAnchor.constraint(equalToConstant: Layout.backdropSize.height),
+        riveLeadingConstraint = riveView.leadingAnchor.constraint(equalTo: leadingAnchor)
+        riveTrailingConstraint = riveView.trailingAnchor.constraint(equalTo: trailingAnchor)
+        riveTopConstraint = riveView.topAnchor.constraint(equalTo: topAnchor)
+        riveBottomConstraint = riveView.bottomAnchor.constraint(equalTo: bottomAnchor)
 
-            riveView.leadingAnchor.constraint(
-                equalTo: leadingAnchor,
-                constant: Layout.riveInset.left
-            ),
-            riveView.trailingAnchor.constraint(
-                equalTo: trailingAnchor,
-                constant: -Layout.riveInset.right
-            ),
-            riveView.topAnchor.constraint(
-                equalTo: topAnchor,
-                constant: Layout.riveInset.top
-            ),
-            riveView.bottomAnchor.constraint(
-                equalTo: bottomAnchor,
-                constant: -Layout.riveInset.bottom
-            ),
+        NSLayoutConstraint.activate([
+            riveLeadingConstraint!,
+            riveTrailingConstraint!,
+            riveTopConstraint!,
+            riveBottomConstraint!,
         ])
+
+        self.viewModel = viewModel
+        self.riveView = riveView
+
+        applyLayout()
+        enforceTransparentRendering()
     }
 
-    private func enforceTransparency() {
-        window?.isOpaque = false
-        window?.backgroundColor = .clear
+    private func tearDownRiveView() {
+        NSLayoutConstraint.deactivate([
+            riveLeadingConstraint,
+            riveTrailingConstraint,
+            riveTopConstraint,
+            riveBottomConstraint,
+        ].compactMap { $0 })
 
+        if let viewModel {
+            viewModel.pause()
+            viewModel.deregisterView()
+        }
+
+        riveView?.removeFromSuperview()
+        viewModel = nil
+        riveView = nil
+        riveLeadingConstraint = nil
+        riveTrailingConstraint = nil
+        riveTopConstraint = nil
+        riveBottomConstraint = nil
+    }
+
+    private func applyLayout() {
+        frame.size = asset.layout.panelSize
+
+        backdropView.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.16)
+            .cgColor
+        backdropView.layer?.cornerRadius = asset.layout.cornerRadius
+        backdropView.layer?.shadowColor = NSColor.black.withAlphaComponent(0.28).cgColor
+        backdropView.layer?.shadowOpacity = 1
+        backdropView.layer?.shadowRadius = 8
+        backdropView.layer?.shadowOffset = CGSize(width: 0, height: -1)
+
+        backdropWidthConstraint?.constant = asset.layout.backdropSize.width
+        backdropHeightConstraint?.constant = asset.layout.backdropSize.height
+        riveLeadingConstraint?.constant = asset.layout.riveInset.left
+        riveTrailingConstraint?.constant = -asset.layout.riveInset.right
+        riveTopConstraint?.constant = asset.layout.riveInset.top
+        riveBottomConstraint?.constant = -asset.layout.riveInset.bottom
+    }
+
+    private func enforceTransparentRendering() {
         clearBackgroundsRecursively(in: self)
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
@@ -276,7 +315,7 @@ final class DesktopPetContentView: NSView {
     private func performAmbientInteractionIfPossible() {
         defer {
             scheduleAmbientInteraction(
-                after: TimeInterval.random(in: Layout.ambientDelay)
+                after: TimeInterval.random(in: Timing.ambientDelay)
             )
         }
 
@@ -306,7 +345,7 @@ final class DesktopPetContentView: NSView {
                 eventType = .leftMouseDragged
             }
 
-            let delay = Layout.ambientStepDelay * Double(index)
+            let delay = Timing.ambientStepDelay * Double(index)
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let self else { return }
                 self.dispatchSyntheticMouseEvent(
@@ -318,29 +357,25 @@ final class DesktopPetContentView: NSView {
     }
 
     private func makeAmbientPath() -> [CGPoint]? {
+        guard let orbit = asset.ambientOrbit else { return nil }
+
         let direction: CGFloat = Bool.random() ? 1 : -1
         let startAngle = CGFloat.random(in: 0...(2 * .pi))
-        let sweep = CGFloat.random(in: AmbientPath.sweep) * direction
+        let sweep = CGFloat.random(in: orbit.sweep) * direction
         let center = CGPoint(
-            x: AmbientPath.center.x + CGFloat.random(in: AmbientPath.centerJitterX),
-            y: AmbientPath.center.y + CGFloat.random(in: AmbientPath.centerJitterY)
+            x: orbit.center.x + CGFloat.random(in: orbit.centerJitterX),
+            y: orbit.center.y + CGFloat.random(in: orbit.centerJitterY)
         )
-        let radiusX = CGFloat.random(in: AmbientPath.radiusX)
-        let radiusY = CGFloat.random(in: AmbientPath.radiusY)
+        let radiusX = CGFloat.random(in: orbit.radiusX)
+        let radiusY = CGFloat.random(in: orbit.radiusY)
 
-        return (0..<AmbientPath.pointCount).map { index in
-            let progress = CGFloat(index) / CGFloat(AmbientPath.pointCount - 1)
+        return (0..<orbit.pointCount).map { index in
+            let progress = CGFloat(index) / CGFloat(max(orbit.pointCount - 1, 1))
             let angle = startAngle + (sweep * progress)
 
             return CGPoint(
-                x: clamp(
-                    center.x + cos(angle) * radiusX,
-                    to: AmbientPath.xBounds
-                ),
-                y: clamp(
-                    center.y + sin(angle) * radiusY,
-                    to: AmbientPath.yBounds
-                )
+                x: clamp(center.x + cos(angle) * radiusX, to: orbit.xBounds),
+                y: clamp(center.y + sin(angle) * radiusY, to: orbit.yBounds)
             )
         }
     }
@@ -353,7 +388,8 @@ final class DesktopPetContentView: NSView {
             ambientInteractionEnabled,
             !isUserInteracting,
             let window,
-            window.isVisible
+            window.isVisible,
+            let riveView
         else {
             return
         }
@@ -398,17 +434,120 @@ final class DesktopPetContentView: NSView {
     }
 
     private var interactionRect: CGRect {
-        riveView.frame.expanded(by: Layout.interactionInset)
+        guard let riveView else { return .zero }
+        return riveView.frame.expanded(by: asset.layout.interactionInset)
     }
 
-    private func handleUserMouseEvent(
-        _ event: NSEvent,
-        forward: (NSEvent) -> Void
-    ) {
-        guard ambientInteractionEnabled else { return }
+    private var pointerCaptureRect: CGRect? {
+        guard
+            let riveView,
+            let normalizedRect = asset.layout.pointerCaptureRect
+        else {
+            return nil
+        }
 
+        let expandedFrame = riveView.frame.expanded(by: asset.layout.interactionInset)
+        return CGRect(
+            x: expandedFrame.minX + (normalizedRect.minX * expandedFrame.width),
+            y: expandedFrame.minY + (normalizedRect.minY * expandedFrame.height),
+            width: normalizedRect.width * expandedFrame.width,
+            height: normalizedRect.height * expandedFrame.height
+        )
+    }
+
+    private func beginInteractiveDragIfPossible(with event: NSEvent) {
+        guard
+            ambientInteractionEnabled,
+            let interaction = resolveInteractionContext(for: event)
+        else {
+            isDraggingInteractiveElement = false
+            return
+        }
+
+        let hitResult = interaction.stateMachine.touchBegan(
+            atLocation: interaction.artboardLocation
+        )
+        guard hitResult != .none else {
+            isDraggingInteractiveElement = false
+            return
+        }
+
+        isDraggingInteractiveElement = true
         noteUserInteractionActivity()
-        forward(event)
+        viewModel?.play()
+    }
+
+    private func continueInteractiveDragIfNeeded(with event: NSEvent) {
+        guard
+            ambientInteractionEnabled,
+            isDraggingInteractiveElement,
+            let interaction = resolveInteractionContext(for: event)
+        else {
+            return
+        }
+
+        _ = interaction.stateMachine.touchMoved(atLocation: interaction.artboardLocation)
+        noteUserInteractionActivity()
+        viewModel?.play()
+    }
+
+    private func endInteractiveDragIfNeeded(with event: NSEvent) {
+        guard
+            ambientInteractionEnabled,
+            isDraggingInteractiveElement,
+            let interaction = resolveInteractionContext(for: event)
+        else {
+            isDraggingInteractiveElement = false
+            return
+        }
+
+        _ = interaction.stateMachine.touchEnded(atLocation: interaction.artboardLocation)
+        isDraggingInteractiveElement = false
+        noteUserInteractionActivity()
+        viewModel?.play()
+    }
+
+    private func cancelInteractiveDragIfNeeded(with event: NSEvent) {
+        guard
+            ambientInteractionEnabled,
+            isDraggingInteractiveElement,
+            let interaction = resolveInteractionContext(for: event)
+        else {
+            isDraggingInteractiveElement = false
+            return
+        }
+
+        _ = interaction.stateMachine.touchCancelled(
+            atLocation: interaction.artboardLocation
+        )
+        isDraggingInteractiveElement = false
+        viewModel?.play()
+    }
+
+    private func resolveInteractionContext(
+        for event: NSEvent
+    ) -> (stateMachine: RiveStateMachineInstance, artboardLocation: CGPoint)? {
+        guard
+            let riveView,
+            let artboard = viewModel?.riveModel?.artboard,
+            let stateMachine = viewModel?.riveModel?.stateMachine
+        else {
+            return nil
+        }
+
+        let locationInRiveView = riveView.convert(event.locationInWindow, from: nil)
+        let flippedLocation = CGPoint(
+            x: locationInRiveView.x,
+            y: riveView.bounds.height - locationInRiveView.y
+        )
+        let artboardLocation = riveView.artboardLocation(
+            fromTouchLocation: flippedLocation,
+            inArtboard: artboard.bounds(),
+            fit: viewModel?.fit ?? .contain,
+            alignment: viewModel?.alignment ?? .center
+        )
+
+        return (stateMachine, artboardLocation)
     }
 
     private func noteUserInteractionActivity() {
@@ -421,13 +560,13 @@ final class DesktopPetContentView: NSView {
             guard let self, self.ambientInteractionEnabled else { return }
             self.isUserInteracting = false
             self.scheduleAmbientInteraction(
-                after: TimeInterval.random(in: Layout.ambientDelay)
+                after: TimeInterval.random(in: Timing.ambientDelay)
             )
         }
         userInteractionResumeWorkItem = workItem
 
         DispatchQueue.main.asyncAfter(
-            deadline: .now() + Layout.ambientResumeDelay,
+            deadline: .now() + Timing.ambientResumeDelay,
             execute: workItem
         )
     }

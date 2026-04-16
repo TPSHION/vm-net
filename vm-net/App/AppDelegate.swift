@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import Combine
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -15,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let throughputStore = ThroughputStore()
     private let speedTestStore = SpeedTestStore()
     private let diagnosisStore = NetworkDiagnosisStore()
+    private var cancellables = Set<AnyCancellable>()
     private var statusItemController: StatusItemController?
     private var floatingBallController: FloatingBallController?
     private var desktopPetController: DesktopPetController?
@@ -32,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        bindPreferences()
         ensureStatusItemController()
         if preferences.showInFloatingBall {
             ensureFloatingBallController()
@@ -138,10 +141,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func ensureDesktopPetController() -> DesktopPetController {
         if let desktopPetController {
+            desktopPetController.applyAsset(preferences.desktopPetAsset)
             return desktopPetController
         }
 
-        let desktopPetController = DesktopPetController()
+        let desktopPetController = DesktopPetController(asset: preferences.desktopPetAsset)
         self.desktopPetController = desktopPetController
         return desktopPetController
     }
@@ -159,5 +163,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             attachedTo: anchorFrame,
             on: screen
         )
+    }
+
+    private func bindPreferences() {
+        preferences.$desktopPetAssetID
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.desktopPetController?.applyAsset(self.preferences.desktopPetAsset)
+                self.refreshDesktopPetVisibility()
+            }
+            .store(in: &cancellables)
     }
 }
