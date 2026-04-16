@@ -30,7 +30,7 @@ struct PetHomeAnchor {
     }
 
     func resolvedRelativeOriginOffset(for asset: DesktopPetAsset) -> CGPoint {
-        let rawOrigin = selectedRawOrigin(for: asset)
+        let rawOrigin = clampedPreferredOrigin(for: asset)
         return CGPoint(
             x: rawOrigin.x - frame.origin.x,
             y: rawOrigin.y - frame.origin.y

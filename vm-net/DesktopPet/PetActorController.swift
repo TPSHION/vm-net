@@ -126,11 +126,37 @@ final class PetActorController {
         homeOrigin: CGPoint?
     ) {
         self.movementBounds = clampedMovementBounds(movementBounds)
-        self.homeOrigin = homeOrigin.map(clampedOrigin(_:))
+        let previousHomeOrigin = self.homeOrigin
+        let resolvedHomeOrigin = homeOrigin.map(clampedOrigin(_:))
+        self.homeOrigin = resolvedHomeOrigin
         currentOrigin = clampedOrigin(currentOrigin)
-        destinationOrigin = clampedOrigin(
-            self.homeOrigin ?? destinationOrigin
-        )
+
+        switch state {
+        case .restAtHome:
+            if let resolvedHomeOrigin {
+                currentOrigin = resolvedHomeOrigin
+                destinationOrigin = resolvedHomeOrigin
+            } else {
+                destinationOrigin = clampedOrigin(destinationOrigin)
+            }
+        case .goHome:
+            destinationOrigin = clampedOrigin(
+                resolvedHomeOrigin ?? destinationOrigin
+            )
+        case .idle, .wander:
+            if !isRoamingEnabled, let resolvedHomeOrigin {
+                currentOrigin = resolvedHomeOrigin
+                destinationOrigin = resolvedHomeOrigin
+            } else if
+                let previousHomeOrigin,
+                let resolvedHomeOrigin,
+                destinationOrigin == previousHomeOrigin
+            {
+                destinationOrigin = resolvedHomeOrigin
+            } else {
+                destinationOrigin = clampedOrigin(destinationOrigin)
+            }
+        }
 
         syncFrame()
         ensurePlanIfPossible()
