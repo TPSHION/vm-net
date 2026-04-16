@@ -68,6 +68,8 @@ final class AppPreferences: ObservableObject {
         static let displayMode = "cn.tpshion.vm-net.display-mode"
         static let showInFloatingBall = "cn.tpshion.vm-net.show-in-floating-ball"
         static let showDesktopPet = "cn.tpshion.vm-net.show-desktop-pet"
+        static let desktopPetAllowsRoaming =
+            "cn.tpshion.vm-net.desktop-pet-allows-roaming"
         static let desktopPetAssetID = "cn.tpshion.vm-net.desktop-pet-asset-id"
         static let floatingBallBackgroundColor =
             "cn.tpshion.vm-net.floating-ball-background-color"
@@ -102,6 +104,15 @@ final class AppPreferences: ObservableObject {
     @Published var showDesktopPet: Bool {
         didSet {
             defaults.set(showDesktopPet, forKey: Keys.showDesktopPet)
+        }
+    }
+
+    @Published var desktopPetAllowsRoaming: Bool {
+        didSet {
+            defaults.set(
+                desktopPetAllowsRoaming,
+                forKey: Keys.desktopPetAllowsRoaming
+            )
         }
     }
 
@@ -177,6 +188,10 @@ final class AppPreferences: ObservableObject {
         DesktopPetCatalog.asset(for: desktopPetAssetID)
     }
 
+    var desktopPetDefinition: PetDefinition {
+        PetDefinitionCatalog.definition(for: desktopPetAsset)
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
@@ -184,12 +199,15 @@ final class AppPreferences: ObservableObject {
             defaults.object(forKey: Keys.showInFloatingBall) as? Bool ?? false
         let storedShowDesktopPet =
             defaults.object(forKey: Keys.showDesktopPet) as? Bool ?? false
+        let storedDesktopPetAllowsRoaming =
+            defaults.object(forKey: Keys.desktopPetAllowsRoaming) as? Bool ?? true
 
         self.displayMode = ThroughputDisplayMode(
             rawValue: defaults.string(forKey: Keys.displayMode) ?? ""
         ) ?? .realtime
         self.showInFloatingBall = storedShowInFloatingBall
         self.showDesktopPet = storedShowDesktopPet
+        self.desktopPetAllowsRoaming = storedDesktopPetAllowsRoaming
         self.desktopPetAssetID = DesktopPetAssetID(
             rawValue: defaults.string(forKey: Keys.desktopPetAssetID) ?? ""
         ) ?? DesktopPetCatalog.defaultAssetID

@@ -17,12 +17,20 @@ final class PetOverlayController: NSWindowController {
     private let rootView = PetOverlayPassthroughView()
     private let actorController: PetActorController
     private var asset: DesktopPetAsset
+    private var isRoamingEnabled: Bool
     private weak var currentScreen: NSScreen?
     private var currentHomeAnchor: PetHomeAnchor?
 
-    init(asset: DesktopPetAsset) {
+    init(
+        asset: DesktopPetAsset,
+        isRoamingEnabled: Bool = true
+    ) {
         self.asset = asset
-        self.actorController = PetActorController(asset: asset)
+        self.isRoamingEnabled = isRoamingEnabled
+        self.actorController = PetActorController(
+            asset: asset,
+            isRoamingEnabled: isRoamingEnabled
+        )
 
         let panel = PetOverlayPanel(
             contentRect: NSRect(origin: .zero, size: asset.layout.panelSize),
@@ -39,6 +47,9 @@ final class PetOverlayController: NSWindowController {
             guard let self, let window = self.window else { return }
             window.setFrameOrigin(origin)
             self.updateInputPassthrough(for: window.frame)
+        }
+        actorController.viewDidChange = { [weak self] view in
+            self?.rootView.actorView = view
         }
         rootView.actorView = actorController.view
     }
@@ -59,6 +70,11 @@ final class PetOverlayController: NSWindowController {
                 homeOrigin: currentHomeAnchor?.preferredOrigin(for: asset)
             )
         }
+    }
+
+    func setRoamingEnabled(_ isEnabled: Bool) {
+        isRoamingEnabled = isEnabled
+        actorController.setRoamingEnabled(isEnabled)
     }
 
     func show(on screen: NSScreen, homeAnchor: PetHomeAnchor?) {

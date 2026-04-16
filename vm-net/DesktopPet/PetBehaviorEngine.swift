@@ -33,24 +33,45 @@ struct PetBehaviorPlan {
 struct PetBehaviorEngine {
 
     private(set) var profile: DesktopPetBehaviorProfile
+    private var isRoamingEnabled: Bool
     private var completedWanderCycles = 0
     private var nextReturnThreshold: Int
     private var migrationTarget: CGPoint?
     private var remainingMigrationSegments = 0
     private var isReturningHome = false
 
-    init(profile: DesktopPetBehaviorProfile) {
+    init(
+        profile: DesktopPetBehaviorProfile,
+        isRoamingEnabled: Bool = true
+    ) {
         self.profile = profile
+        self.isRoamingEnabled = isRoamingEnabled
         self.nextReturnThreshold = Int.random(in: profile.wanderCycleBeforeHome)
     }
 
-    mutating func reset(profile: DesktopPetBehaviorProfile) {
+    mutating func reset(
+        profile: DesktopPetBehaviorProfile,
+        isRoamingEnabled: Bool? = nil
+    ) {
         self.profile = profile
+        if let isRoamingEnabled {
+            self.isRoamingEnabled = isRoamingEnabled
+        }
         completedWanderCycles = 0
         nextReturnThreshold = Int.random(in: profile.wanderCycleBeforeHome)
         migrationTarget = nil
         remainingMigrationSegments = 0
         isReturningHome = false
+    }
+
+    mutating func setRoamingEnabled(_ isEnabled: Bool) {
+        isRoamingEnabled = isEnabled
+
+        if !isEnabled {
+            migrationTarget = nil
+            remainingMigrationSegments = 0
+            isReturningHome = false
+        }
     }
 
     mutating func initialPlan(
@@ -80,6 +101,14 @@ struct PetBehaviorEngine {
         movementBounds: CGRect,
         homeOrigin: CGPoint?
     ) -> PetBehaviorPlan {
+        if !isRoamingEnabled {
+            return makeRestingPlan(
+                from: currentOrigin,
+                movementBounds: movementBounds,
+                homeOrigin: homeOrigin
+            )
+        }
+
         switch state {
         case .restAtHome:
             return makeWanderPlan(
@@ -155,6 +184,32 @@ struct PetBehaviorEngine {
         }
     }
 
+    mutating func roamingDisabledPlan(
+        currentOrigin: CGPoint,
+        movementBounds: CGRect,
+        homeOrigin: CGPoint?
+    ) -> PetBehaviorPlan {
+        makeRestingPlan(
+            from: currentOrigin,
+            movementBounds: movementBounds,
+            homeOrigin: homeOrigin
+        )
+    }
+
+    mutating func roamingEnabledPlan(
+        currentOrigin: CGPoint,
+        movementBounds: CGRect
+    ) -> PetBehaviorPlan {
+        migrationTarget = nil
+        remainingMigrationSegments = 0
+        isReturningHome = false
+
+        return makeWanderPlan(
+            from: currentOrigin,
+            in: movementBounds
+        )
+    }
+
     private mutating func makeWanderPlan(
         from currentOrigin: CGPoint,
         in movementBounds: CGRect
@@ -220,6 +275,39 @@ struct PetBehaviorEngine {
             destination: target,
             speed: CGFloat.random(in: profile.movementSpeed),
             dwellDuration: nil
+        )
+    }
+
+    private func makeRestingPlan(
+        from currentOrigin: CGPoint,
+        movementBounds: CGRect,
+        homeOrigin: CGPoint?
+    ) -> PetBehaviorPlan {
+        if let homeOrigin {
+            let clampedHomeOrigin = clamp(homeOrigin, to: movementBounds)
+
+            if distance(from: currentOrigin, to: clampedHomeOrigin) <= homeArrivalThreshold {
+                return PetBehaviorPlan(
+                    state: .restAtHome,
+                    destination: clampedHomeOrigin,
+                    speed: 0,
+                    dwellDuration: TimeInterval.random(in: profile.restAtHomeDuration)
+                )
+            }
+
+            return PetBehaviorPlan(
+                state: .idle,
+                destination: clamp(currentOrigin, to: movementBounds),
+                speed: 0,
+                dwellDuration: returnHomeIdleDuration
+            )
+        }
+
+        return PetBehaviorPlan(
+            state: .idle,
+            destination: clamp(currentOrigin, to: movementBounds),
+            speed: 0,
+            dwellDuration: returnHomeIdleDuration
         )
     }
 

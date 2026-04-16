@@ -22,7 +22,9 @@ final class ConfigurationWindowController: NSWindowController {
         speedTestStore: SpeedTestStore,
         diagnosisStore: NetworkDiagnosisStore,
         onFloatingBallToggle: @escaping (Bool) -> Void,
-        onDesktopPetToggle: @escaping (Bool) -> Void
+        onDesktopPetToggle: @escaping (Bool) -> Void,
+        onDesktopPetRoamingToggle: @escaping (Bool) -> Void,
+        onDesktopPetAssetApply: @escaping (DesktopPetAssetID) -> Void
     ) {
         let rootView = ConfigurationView(
             preferences: preferences,
@@ -30,7 +32,9 @@ final class ConfigurationWindowController: NSWindowController {
             speedTestStore: speedTestStore,
             diagnosisStore: diagnosisStore,
             onFloatingBallToggle: onFloatingBallToggle,
-            onDesktopPetToggle: onDesktopPetToggle
+            onDesktopPetToggle: onDesktopPetToggle,
+            onDesktopPetRoamingToggle: onDesktopPetRoamingToggle,
+            onDesktopPetAssetApply: onDesktopPetAssetApply
         )
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)

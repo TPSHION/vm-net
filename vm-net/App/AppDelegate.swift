@@ -30,6 +30,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         },
         onDesktopPetToggle: { [weak self] isEnabled in
             self?.setDesktopPetEnabled(isEnabled)
+        },
+        onDesktopPetRoamingToggle: { [weak self] isEnabled in
+            self?.setDesktopPetRoamingEnabled(isEnabled)
+        },
+        onDesktopPetAssetApply: { [weak self] assetID in
+            self?.applyDesktopPetAsset(assetID)
         }
     )
 
@@ -82,6 +88,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             petWorldController?.hide()
         }
+    }
+
+    private func setDesktopPetRoamingEnabled(_ isEnabled: Bool) {
+        petWorldController?.setRoamingEnabled(isEnabled)
+        refreshDesktopPetVisibility()
+    }
+
+    private func applyDesktopPetAsset(_ assetID: DesktopPetAssetID) {
+        guard preferences.desktopPetAssetID != assetID else {
+            petWorldController?.applyAsset(preferences.desktopPetAsset)
+            refreshDesktopPetVisibility()
+            return
+        }
+
+        preferences.desktopPetAssetID = assetID
+        let asset = preferences.desktopPetAsset
+        petWorldController?.applyAsset(asset)
+        refreshDesktopPetVisibility()
     }
 
     private func ensureStatusItemController() {
@@ -142,10 +166,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func ensurePetWorldController() -> PetWorldController {
         if let petWorldController {
             petWorldController.applyAsset(preferences.desktopPetAsset)
+            petWorldController.setRoamingEnabled(preferences.desktopPetAllowsRoaming)
             return petWorldController
         }
 
-        let petWorldController = PetWorldController(asset: preferences.desktopPetAsset)
+        let petWorldController = PetWorldController(
+            asset: preferences.desktopPetAsset,
+            isRoamingEnabled: preferences.desktopPetAllowsRoaming
+        )
         self.petWorldController = petWorldController
         return petWorldController
     }
@@ -172,6 +200,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] _ in
                 guard let self else { return }
                 self.petWorldController?.applyAsset(self.preferences.desktopPetAsset)
+                self.refreshDesktopPetVisibility()
+            }
+            .store(in: &cancellables)
+
+        preferences.$desktopPetAllowsRoaming
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] isEnabled in
+                guard let self else { return }
+                self.petWorldController?.setRoamingEnabled(isEnabled)
                 self.refreshDesktopPetVisibility()
             }
             .store(in: &cancellables)

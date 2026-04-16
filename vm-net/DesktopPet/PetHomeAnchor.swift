@@ -11,36 +11,66 @@ struct PetHomeAnchor {
 
     let frame: CGRect
     let visibleFrame: CGRect
+    let relativeOriginOffset: CGPoint?
 
     func preferredOrigin(for asset: DesktopPetAsset) -> CGPoint {
+        if let relativeOriginOffset {
+            return clampedOrigin(
+                CGPoint(
+                    x: frame.origin.x + relativeOriginOffset.x,
+                    y: frame.origin.y + relativeOriginOffset.y
+                ),
+                in: visibleFrame,
+                size: asset.layout.panelSize,
+                screenPadding: asset.layout.attachment.screenPadding
+            )
+        }
+
+        return clampedPreferredOrigin(for: asset)
+    }
+
+    func resolvedRelativeOriginOffset(for asset: DesktopPetAsset) -> CGPoint {
+        let rawOrigin = selectedRawOrigin(for: asset)
+        return CGPoint(
+            x: rawOrigin.x - frame.origin.x,
+            y: rawOrigin.y - frame.origin.y
+        )
+    }
+
+    private func clampedPreferredOrigin(for asset: DesktopPetAsset) -> CGPoint {
+        let attachment = asset.layout.attachment
+        return clampedOrigin(
+            selectedRawOrigin(for: asset),
+            in: visibleFrame,
+            size: asset.layout.panelSize,
+            screenPadding: attachment.screenPadding
+        )
+    }
+
+    private func selectedRawOrigin(for asset: DesktopPetAsset) -> CGPoint {
         let attachment = asset.layout.attachment
         let petSize = asset.layout.panelSize
 
         let leftOrigin = CGPoint(
-            x: frame.minX - petSize.width + attachment.overlap,
+            x: frame.minX - petSize.width + attachment.overlap + attachment.horizontalOffset,
             y: frame.midY - (petSize.height / 2) + attachment.verticalOffset
         )
-
-        if leftOrigin.x >= visibleFrame.minX + attachment.screenPadding {
-            return clampedOrigin(
-                leftOrigin,
-                in: visibleFrame,
-                size: petSize,
-                screenPadding: attachment.screenPadding
-            )
-        }
+        let leftFits = leftOrigin.x >= visibleFrame.minX + attachment.screenPadding
 
         let rightOrigin = CGPoint(
-            x: frame.maxX - attachment.overlap,
+            x: frame.maxX - attachment.overlap + attachment.horizontalOffset,
             y: frame.midY - (petSize.height / 2) + attachment.verticalOffset
         )
+        let rightFits = rightOrigin.x <= visibleFrame.maxX - petSize.width - attachment.screenPadding
 
-        return clampedOrigin(
-            rightOrigin,
-            in: visibleFrame,
-            size: petSize,
-            screenPadding: attachment.screenPadding
-        )
+        switch attachment.preferredSide {
+        case .left:
+            return leftFits ? leftOrigin : rightOrigin
+        case .right:
+            return rightFits ? rightOrigin : leftOrigin
+        case .automatic:
+            return leftFits ? leftOrigin : rightOrigin
+        }
     }
 
     private func clampedOrigin(

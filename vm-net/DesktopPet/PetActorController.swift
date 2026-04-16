@@ -12,14 +12,17 @@ final class PetActorController {
 
     private enum Timing {
         static let tickInterval: TimeInterval = 1.0 / 30.0
-        static let wanderGuideLeadDelay: TimeInterval = 0.42
     }
 
-    let view: DesktopPetContentView
+    var view: NSView {
+        renderer.view
+    }
     var originDidChange: ((CGPoint) -> Void)?
+    var viewDidChange: ((NSView) -> Void)?
 
     private(set) var asset: DesktopPetAsset
 
+    private var renderer: PetRenderer
     private var behaviorEngine: PetBehaviorEngine
     private weak var parentView: NSView?
     private var tickTimer: Timer?
@@ -32,18 +35,23 @@ final class PetActorController {
     private var stateDeadline: Date?
     private var movementStartDate: Date?
     private var hasInitializedPlan = false
+    private var isRoamingEnabled = true
 
-    init(asset: DesktopPetAsset) {
+    init(
+        asset: DesktopPetAsset,
+        isRoamingEnabled: Bool = true
+    ) {
         self.asset = asset
-        self.behaviorEngine = PetBehaviorEngine(profile: asset.behavior)
-        self.view = DesktopPetContentView(
-            frame: NSRect(origin: .zero, size: asset.layout.panelSize),
-            asset: asset
+        self.isRoamingEnabled = isRoamingEnabled
+        self.renderer = PetRendererFactory.makeRenderer(for: asset)
+        self.behaviorEngine = PetBehaviorEngine(
+            profile: asset.behavior,
+            isRoamingEnabled: isRoamingEnabled
         )
     }
 
     var eventCaptureFrameInParent: CGRect {
-        view.eventCaptureRectInSelf
+        renderer.eventCaptureRectInSelf
     }
 
     deinit {
@@ -68,8 +76,11 @@ final class PetActorController {
         )
 
         self.asset = asset
-        behaviorEngine.reset(profile: asset.behavior)
-        view.applyAsset(asset)
+        behaviorEngine.reset(
+            profile: asset.behavior,
+            isRoamingEnabled: isRoamingEnabled
+        )
+        replaceRenderer(for: asset)
 
         currentOrigin = CGPoint(
             x: previousCenter.x - (asset.layout.panelSize.width / 2),
@@ -85,6 +96,29 @@ final class PetActorController {
 
         syncFrame()
         ensurePlanIfPossible()
+    }
+
+    func setRoamingEnabled(_ isEnabled: Bool) {
+        isRoamingEnabled = isEnabled
+        behaviorEngine.setRoamingEnabled(isEnabled)
+
+        guard hasInitializedPlan, movementBounds != .zero else { return }
+
+        if !isEnabled {
+            let plan = behaviorEngine.roamingDisabledPlan(
+                currentOrigin: currentOrigin,
+                movementBounds: movementBounds,
+                homeOrigin: homeOrigin
+            )
+            apply(plan)
+            return
+        }
+
+        let plan = behaviorEngine.roamingEnabledPlan(
+            currentOrigin: currentOrigin,
+            movementBounds: movementBounds
+        )
+        apply(plan)
     }
 
     func updateEnvironment(
@@ -103,7 +137,7 @@ final class PetActorController {
     }
 
     func start() {
-        view.setAmbientInteractionEnabled(true)
+        renderer.setAmbientInteractionEnabled(true)
         ensurePlanIfPossible()
 
         guard tickTimer == nil else { return }
@@ -123,7 +157,7 @@ final class PetActorController {
         tickTimer?.invalidate()
         tickTimer = nil
         movementStartDate = nil
-        view.setAmbientInteractionEnabled(false)
+        renderer.setAmbientInteractionEnabled(false)
     }
 
     private func ensurePlanIfPossible() {
@@ -144,7 +178,7 @@ final class PetActorController {
 
     private func tick() {
         guard hasInitializedPlan, movementBounds != .zero else { return }
-        guard !view.hasActiveInteraction else { return }
+        guard !renderer.hasActiveInteraction else { return }
 
         if state.isMoving {
             if let movementStartDate, Date() < movementStartDate {
@@ -210,18 +244,22 @@ final class PetActorController {
         state = plan.state
         destinationOrigin = clampedOrigin(plan.destination)
         currentSpeed = plan.speed
+        let movementVector = CGVector(
+            dx: destinationOrigin.x - currentOrigin.x,
+            dy: destinationOrigin.y - currentOrigin.y
+        )
+
+        renderer.applyBehaviorState(
+            state,
+            movementVector: state.isMoving ? movementVector : nil
+        )
 
         if state.isMoving {
             stateDeadline = nil
             if state == .wander {
-                view.playMovementGuide(
-                    toward: CGVector(
-                        dx: destinationOrigin.x - currentOrigin.x,
-                        dy: destinationOrigin.y - currentOrigin.y
-                    )
-                )
+                renderer.playMovementGuide(toward: movementVector)
                 movementStartDate = Date().addingTimeInterval(
-                    Timing.wanderGuideLeadDelay
+                    renderer.movementGuideLeadDelay
                 )
             } else {
                 movementStartDate = nil
@@ -239,6 +277,22 @@ final class PetActorController {
     private func syncFrame() {
         view.frame = CGRect(origin: .zero, size: asset.layout.panelSize)
         originDidChange?(currentOrigin.rounded)
+    }
+
+    private func replaceRenderer(for asset: DesktopPetAsset) {
+        let wasRunning = tickTimer != nil
+        let previousView = renderer.view
+
+        renderer = PetRendererFactory.makeRenderer(for: asset)
+        renderer.applyAsset(asset)
+        renderer.setAmbientInteractionEnabled(wasRunning)
+
+        if let parentView {
+            previousView.removeFromSuperview()
+            renderer.view.frame = CGRect(origin: .zero, size: asset.layout.panelSize)
+            parentView.addSubview(renderer.view)
+        }
+        viewDidChange?(renderer.view)
     }
 
     private func clampedOrigin(_ origin: CGPoint) -> CGPoint {

@@ -38,13 +38,19 @@ final class DesktopPetContentView: NSView {
     private var userInteractionResumeWorkItem: DispatchWorkItem?
     private var isUserInteracting = false
     private var isDraggingInteractiveElement = false
+    private var currentBehaviorState: PetBehaviorState = .restAtHome
 
     var hasActiveInteraction: Bool {
         isDraggingInteractiveElement
     }
 
     var eventCaptureRectInSelf: CGRect {
-        pointerCaptureRect ?? bounds
+        guard allowsDirectPointerInteraction else { return .zero }
+        return pointerCaptureRect ?? .zero
+    }
+
+    var movementGuideLeadDelay: TimeInterval {
+        asset.riveBehavior?.movementGuideLeadDelay ?? 0
     }
 
     private var backdropWidthConstraint: NSLayoutConstraint?
@@ -96,18 +102,20 @@ final class DesktopPetContentView: NSView {
         guard self.asset.id != asset.id else { return }
 
         self.asset = asset
+        currentBehaviorState = .restAtHome
         invalidateIntrinsicContentSize()
         applyLayout()
         rebuildRiveView()
         ambientInteractionTimer?.invalidate()
         ambientInteractionTimer = nil
         isUserInteracting = false
+        isDraggingInteractiveElement = false
     }
 
     func setAmbientInteractionEnabled(_ isEnabled: Bool) {
-        ambientInteractionEnabled = isEnabled
+        ambientInteractionEnabled = isEnabled && supportsAnyInteraction
 
-        if isEnabled {
+        if ambientInteractionEnabled {
             ambientInteractionTimer?.invalidate()
             ambientInteractionTimer = nil
             userInteractionResumeWorkItem?.cancel()
@@ -122,9 +130,18 @@ final class DesktopPetContentView: NSView {
         }
     }
 
+    func applyBehaviorState(
+        _ state: PetBehaviorState,
+        movementVector: CGVector?
+    ) {
+        currentBehaviorState = state
+    }
+
     func playMovementGuide(toward vector: CGVector) {
         guard
             ambientInteractionEnabled,
+            allowsMovementGuide,
+            currentBehaviorState == .wander,
             !isUserInteracting,
             window?.isVisible == true,
             let path = makeMovementGuidePath(toward: vector)
@@ -153,7 +170,7 @@ final class DesktopPetContentView: NSView {
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        guard ambientInteractionEnabled || isDraggingInteractiveElement else {
+        guard allowsDirectPointerInteraction, ambientInteractionEnabled || isDraggingInteractiveElement else {
             return nil
         }
 
@@ -340,7 +357,7 @@ final class DesktopPetContentView: NSView {
     }
 
     private func makeMovementGuidePath(toward vector: CGVector) -> [CGPoint]? {
-        guard let orbit = asset.ambientOrbit else { return nil }
+        guard let orbit = asset.riveBehavior?.ambientOrbit else { return nil }
 
         let length = max(hypot(vector.dx, vector.dy), 0.001)
         let unitX = vector.dx / length
@@ -484,6 +501,7 @@ final class DesktopPetContentView: NSView {
     private var pointerCaptureRect: CGRect? {
         guard
             let riveView,
+            allowsDirectPointerInteraction,
             let normalizedRect = asset.layout.pointerCaptureRect
         else {
             return nil
@@ -501,6 +519,7 @@ final class DesktopPetContentView: NSView {
     private func beginInteractiveDragIfPossible(with event: NSEvent) {
         guard
             ambientInteractionEnabled,
+            allowsDirectPointerInteraction,
             let interaction = resolveInteractionContext(for: event)
         else {
             isDraggingInteractiveElement = false
@@ -523,6 +542,7 @@ final class DesktopPetContentView: NSView {
     private func continueInteractiveDragIfNeeded(with event: NSEvent) {
         guard
             ambientInteractionEnabled,
+            allowsDirectPointerInteraction,
             isDraggingInteractiveElement,
             let interaction = resolveInteractionContext(for: event)
         else {
@@ -537,6 +557,7 @@ final class DesktopPetContentView: NSView {
     private func endInteractiveDragIfNeeded(with event: NSEvent) {
         guard
             ambientInteractionEnabled,
+            allowsDirectPointerInteraction,
             isDraggingInteractiveElement,
             let interaction = resolveInteractionContext(for: event)
         else {
@@ -553,6 +574,7 @@ final class DesktopPetContentView: NSView {
     private func cancelInteractiveDragIfNeeded(with event: NSEvent) {
         guard
             ambientInteractionEnabled,
+            allowsDirectPointerInteraction,
             isDraggingInteractiveElement,
             let interaction = resolveInteractionContext(for: event)
         else {
@@ -571,6 +593,7 @@ final class DesktopPetContentView: NSView {
         for event: NSEvent
     ) -> (stateMachine: RiveStateMachineInstance, artboardLocation: CGPoint)? {
         guard
+            allowsDirectPointerInteraction,
             let riveView,
             let artboard = viewModel?.riveModel?.artboard,
             let stateMachine = viewModel?.riveModel?.stateMachine
@@ -609,5 +632,17 @@ final class DesktopPetContentView: NSView {
             deadline: .now() + Timing.ambientResumeDelay,
             execute: workItem
         )
+    }
+
+    private var allowsDirectPointerInteraction: Bool {
+        asset.riveBehavior?.allowsDirectPointerInteraction == true
+    }
+
+    private var allowsMovementGuide: Bool {
+        asset.riveBehavior?.allowsMovementGuide == true
+    }
+
+    private var supportsAnyInteraction: Bool {
+        asset.riveBehavior?.supportsAnyInteraction == true
     }
 }

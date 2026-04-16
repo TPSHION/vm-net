@@ -23,6 +23,8 @@ struct ConfigurationView: View {
     @ObservedObject var diagnosisStore: NetworkDiagnosisStore
     let onFloatingBallToggle: (Bool) -> Void
     let onDesktopPetToggle: (Bool) -> Void
+    let onDesktopPetRoamingToggle: (Bool) -> Void
+    let onDesktopPetAssetApply: (DesktopPetAssetID) -> Void
     @State private var page: Page = .settings
 
     var body: some View {
@@ -74,9 +76,15 @@ struct ConfigurationView: View {
     }
 
     private var desktopPetPage: some View {
-        DesktopPetSettingsPageView(preferences: preferences) {
-            page = .settings
-        }
+        DesktopPetSettingsPageView(
+            preferences: preferences,
+            onBack: {
+                page = .settings
+            },
+            onDesktopPetToggle: onDesktopPetToggle,
+            onDesktopPetRoamingToggle: onDesktopPetRoamingToggle,
+            onDesktopPetAssetApply: onDesktopPetAssetApply
+        )
     }
 
     private var headerSection: some View {
