@@ -12,7 +12,7 @@ final class DesktopPetController: NSWindowController {
 
     private enum Layout {
         static let panelSize = DesktopPetMetrics.size
-        static let overlap: CGFloat = 30
+        static let overlap: CGFloat = 46
         static let verticalOffset: CGFloat = 18
         static let screenPadding: CGFloat = 12
     }
@@ -74,16 +74,20 @@ final class DesktopPetController: NSWindowController {
         panel.level = .floating
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false
-        panel.ignoresMouseEvents = true
+        panel.ignoresMouseEvents = false
+        panel.acceptsMouseMovedEvents = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.animationBehavior = .none
 
-        let hostingView = NSView(frame: NSRect(origin: .zero, size: Layout.panelSize))
+        let hostingView = DesktopPetPassthroughView(
+            frame: NSRect(origin: .zero, size: Layout.panelSize)
+        )
         hostingView.wantsLayer = true
         hostingView.layer?.backgroundColor = NSColor.clear.cgColor
 
         contentView.frame = hostingView.bounds
         contentView.translatesAutoresizingMaskIntoConstraints = false
+        hostingView.targetView = contentView
         hostingView.addSubview(contentView)
 
         NSLayoutConstraint.activate([
@@ -151,4 +155,15 @@ private final class DesktopPetPanel: NSPanel {
 
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
+}
+
+private final class DesktopPetPassthroughView: NSView {
+
+    weak var targetView: NSView?
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard let targetView else { return nil }
+        let pointInTarget = convert(point, to: targetView)
+        return targetView.hitTest(pointInTarget)
+    }
 }

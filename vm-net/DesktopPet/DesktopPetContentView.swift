@@ -10,9 +10,20 @@ import MetalKit
 import RiveRuntime
 
 enum DesktopPetMetrics {
-    static let size = NSSize(width: 152, height: 152)
-    static let backdropSize = NSSize(width: 120, height: 120)
-    static let cornerRadius: CGFloat = 60
+    static let size = NSSize(width: 184, height: 184)
+    static let backdropSize = NSSize(width: 128, height: 128)
+    static let cornerRadius: CGFloat = 64
+}
+
+private extension CGRect {
+    func expanded(by insets: NSEdgeInsets) -> CGRect {
+        CGRect(
+            x: origin.x + insets.left,
+            y: origin.y + insets.bottom,
+            width: size.width - insets.left - insets.right,
+            height: size.height - insets.top - insets.bottom
+        )
+    }
 }
 
 final class DesktopPetContentView: NSView {
@@ -21,11 +32,13 @@ final class DesktopPetContentView: NSView {
 
     private enum Layout {
         static let backdropSize = DesktopPetMetrics.backdropSize
-        static let riveInset = NSEdgeInsets(top: 6, left: 6, bottom: 6, right: 6)
+        static let riveInset = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
         static let cornerRadius = DesktopPetMetrics.cornerRadius
         static let ambientInitialDelay: ClosedRange<TimeInterval> = 1.5...3.0
         static let ambientDelay: ClosedRange<TimeInterval> = 4.0...7.5
         static let ambientStepDelay: TimeInterval = 0.08
+        static let ambientResumeDelay: TimeInterval = 2.4
+        static let interactionInset = NSEdgeInsets(top: -10, left: -12, bottom: -8, right: -12)
     }
 
     private enum AmbientPath {
@@ -59,9 +72,16 @@ final class DesktopPetContentView: NSView {
     private let backdropView = NSView()
     private var ambientInteractionTimer: Timer?
     private var ambientInteractionEnabled = false
+    private var trackingArea: NSTrackingArea?
+    private var userInteractionResumeWorkItem: DispatchWorkItem?
+    private var isUserInteracting = false
 
     override var intrinsicContentSize: NSSize {
         Self.petSize
+    }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
     }
 
     override func viewDidMoveToWindow() {
@@ -87,6 +107,7 @@ final class DesktopPetContentView: NSView {
 
     deinit {
         ambientInteractionTimer?.invalidate()
+        userInteractionResumeWorkItem?.cancel()
         viewModel.pause()
         viewModel.deregisterView()
     }
@@ -95,12 +116,67 @@ final class DesktopPetContentView: NSView {
         ambientInteractionEnabled = isEnabled
 
         if isEnabled {
+            isUserInteracting = false
             scheduleAmbientInteraction(
                 after: TimeInterval.random(in: Layout.ambientInitialDelay)
             )
         } else {
             ambientInteractionTimer?.invalidate()
             ambientInteractionTimer = nil
+            userInteractionResumeWorkItem?.cancel()
+            userInteractionResumeWorkItem = nil
+            isUserInteracting = false
+        }
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+
+        if let trackingArea {
+            removeTrackingArea(trackingArea)
+        }
+
+        let trackingArea = NSTrackingArea(
+            rect: .zero,
+            options: [.activeAlways, .inVisibleRect, .mouseMoved, .mouseEnteredAndExited, .enabledDuringMouseDrag],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(trackingArea)
+        self.trackingArea = trackingArea
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        interactionRect.contains(point) ? self : nil
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        handleUserMouseEvent(event) {
+            riveView.mouseDown(with: $0)
+        }
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        handleUserMouseEvent(event) {
+            riveView.mouseDragged(with: $0)
+        }
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        handleUserMouseEvent(event) {
+            riveView.mouseMoved(with: $0)
+        }
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        handleUserMouseEvent(event) {
+            riveView.mouseUp(with: $0)
+        }
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        handleUserMouseEvent(event) {
+            riveView.mouseExited(with: $0)
         }
     }
 
@@ -187,7 +263,7 @@ final class DesktopPetContentView: NSView {
     private func scheduleAmbientInteraction(after delay: TimeInterval) {
         ambientInteractionTimer?.invalidate()
 
-        guard ambientInteractionEnabled else { return }
+        guard ambientInteractionEnabled, !isUserInteracting else { return }
 
         ambientInteractionTimer = Timer.scheduledTimer(
             withTimeInterval: delay,
@@ -206,6 +282,7 @@ final class DesktopPetContentView: NSView {
 
         guard
             ambientInteractionEnabled,
+            !isUserInteracting,
             window?.isVisible == true,
             let path = makeAmbientPath()
         else {
@@ -274,6 +351,7 @@ final class DesktopPetContentView: NSView {
     ) {
         guard
             ambientInteractionEnabled,
+            !isUserInteracting,
             let window,
             window.isVisible
         else {
@@ -317,5 +395,40 @@ final class DesktopPetContentView: NSView {
         to bounds: ClosedRange<CGFloat>
     ) -> CGFloat {
         min(max(value, bounds.lowerBound), bounds.upperBound)
+    }
+
+    private var interactionRect: CGRect {
+        riveView.frame.expanded(by: Layout.interactionInset)
+    }
+
+    private func handleUserMouseEvent(
+        _ event: NSEvent,
+        forward: (NSEvent) -> Void
+    ) {
+        guard ambientInteractionEnabled else { return }
+
+        noteUserInteractionActivity()
+        forward(event)
+    }
+
+    private func noteUserInteractionActivity() {
+        ambientInteractionTimer?.invalidate()
+        ambientInteractionTimer = nil
+        isUserInteracting = true
+
+        userInteractionResumeWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self, self.ambientInteractionEnabled else { return }
+            self.isUserInteracting = false
+            self.scheduleAmbientInteraction(
+                after: TimeInterval.random(in: Layout.ambientDelay)
+            )
+        }
+        userInteractionResumeWorkItem = workItem
+
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + Layout.ambientResumeDelay,
+            execute: workItem
+        )
     }
 }
