@@ -31,6 +31,19 @@ struct DesktopPetAmbientOrbit {
     let yBounds: ClosedRange<CGFloat>
 }
 
+struct DesktopPetBehaviorProfile {
+    let movementPadding: CGFloat
+    let movementSpeed: ClosedRange<CGFloat>
+    let wanderStepDistance: ClosedRange<CGFloat>
+    let migrationHeadingJitter: ClosedRange<CGFloat>
+    let migrationTargetArrivalThreshold: CGFloat
+    let migrationRetargetAfterSegments: ClosedRange<Int>
+    let idleDuration: ClosedRange<TimeInterval>
+    let restAtHomeDuration: ClosedRange<TimeInterval>
+    let wanderCycleBeforeHome: ClosedRange<Int>
+    let arrivalThreshold: CGFloat
+}
+
 struct DesktopPetViewLayout {
     let panelSize: NSSize
     let backdropSize: NSSize
@@ -49,6 +62,7 @@ struct DesktopPetAsset {
     let artboardName: String
     let stateMachineName: String?
     let layout: DesktopPetViewLayout
+    let behavior: DesktopPetBehaviorProfile
     let ambientOrbit: DesktopPetAmbientOrbit?
 
     var previewCanvasSize: NSSize {
@@ -90,16 +104,28 @@ enum DesktopPetCatalog {
                     screenPadding: 12
                 )
             ),
+            behavior: DesktopPetBehaviorProfile(
+                movementPadding: 44,
+                movementSpeed: 88...126,
+                wanderStepDistance: 84...168,
+                migrationHeadingJitter: (-0.85)...0.85,
+                migrationTargetArrivalThreshold: 120,
+                migrationRetargetAfterSegments: 4...8,
+                idleDuration: 0.9...2.1,
+                restAtHomeDuration: 1.4...2.8,
+                wanderCycleBeforeHome: 4...7,
+                arrivalThreshold: 10
+            ),
             ambientOrbit: DesktopPetAmbientOrbit(
                 center: CGPoint(x: 0.47, y: 0.80),
                 centerJitterX: -0.05...0.05,
                 centerJitterY: -0.04...0.04,
-                radiusX: 0.12...0.22,
-                radiusY: 0.08...0.16,
+                radiusX: 0.18...0.30,
+                radiusY: 0.12...0.22,
                 sweep: (.pi * 0.55)...(.pi * 1.0),
                 pointCount: 6,
-                xBounds: 0.24...0.74,
-                yBounds: 0.64...0.90
+                xBounds: 0.16...0.82,
+                yBounds: 0.58...0.94
             )
         )
     }

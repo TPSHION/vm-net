@@ -52,7 +52,7 @@ struct DesktopPetSettingsPageView: View {
                     Text("当前预览")
                         .font(.system(size: 13, weight: .medium))
 
-                    Text("这里展示的是当前启用的实际桌宠资源。")
+                    Text("这里展示的是当前启用的实际桌宠资源，实际桌宠会在桌面里自由活动。")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
@@ -78,7 +78,7 @@ struct DesktopPetSettingsPageView: View {
                         .fill(Color(nsColor: .controlBackgroundColor).opacity(0.4))
                 )
 
-                Text("预览区支持真实动画；当资源支持时，也可以在这里直接体验鼠标互动。")
+                Text("预览区支持真实动画；实际桌宠会把悬浮胶囊当作它的家，并在屏幕范围里自由活动。")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }
@@ -97,7 +97,7 @@ struct DesktopPetSettingsPageView: View {
                         Text("启用桌面宠物")
                             .font(.system(size: 13, weight: .medium))
 
-                        Text("打开后会跟随悬浮胶囊一起显示，并保持当前选中的宠物资源。")
+                        Text("打开后会在当前屏幕自由活动，并把悬浮胶囊当作它的家。")
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                     }
@@ -118,7 +118,7 @@ struct DesktopPetSettingsPageView: View {
                     .foregroundStyle(.secondary)
 
                 if preferences.showDesktopPet && !preferences.showInFloatingBall {
-                    Text("桌宠依附于悬浮胶囊显示；当前胶囊关闭，所以实际桌宠会先保持隐藏。")
+                    Text("桌宠需要悬浮胶囊作为家；当前胶囊关闭，所以实际桌宠会先保持隐藏。")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }

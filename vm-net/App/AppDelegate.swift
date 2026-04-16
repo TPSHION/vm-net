@@ -19,7 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancellables = Set<AnyCancellable>()
     private var statusItemController: StatusItemController?
     private var floatingBallController: FloatingBallController?
-    private var desktopPetController: DesktopPetController?
+    private var petWorldController: PetWorldController?
     private lazy var configurationWindowController = ConfigurationWindowController(
         preferences: preferences,
         launchAtLoginManager: launchAtLoginManager,
@@ -57,8 +57,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItemController = nil
         floatingBallController?.hide()
         floatingBallController = nil
-        desktopPetController?.hide()
-        desktopPetController = nil
+        petWorldController?.hide()
+        petWorldController = nil
     }
 
     func showMainWindow() {
@@ -80,7 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if isEnabled {
             refreshDesktopPetVisibility()
         } else {
-            desktopPetController?.hide()
+            petWorldController?.hide()
         }
     }
 
@@ -121,7 +121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func refreshDesktopPetVisibility() {
         guard preferences.showDesktopPet, preferences.showInFloatingBall else {
-            desktopPetController?.hide()
+            petWorldController?.hide()
             return
         }
 
@@ -132,22 +132,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        let desktopPetController = ensureDesktopPetController()
-        desktopPetController.show(
-            attachedTo: anchorFrame,
+        let petWorldController = ensurePetWorldController()
+        petWorldController.show(
+            homeAnchorFrame: anchorFrame,
             on: floatingBallController.currentScreen
         )
     }
 
-    private func ensureDesktopPetController() -> DesktopPetController {
-        if let desktopPetController {
-            desktopPetController.applyAsset(preferences.desktopPetAsset)
-            return desktopPetController
+    private func ensurePetWorldController() -> PetWorldController {
+        if let petWorldController {
+            petWorldController.applyAsset(preferences.desktopPetAsset)
+            return petWorldController
         }
 
-        let desktopPetController = DesktopPetController(asset: preferences.desktopPetAsset)
-        self.desktopPetController = desktopPetController
-        return desktopPetController
+        let petWorldController = PetWorldController(asset: preferences.desktopPetAsset)
+        self.petWorldController = petWorldController
+        return petWorldController
     }
 
     private func updateDesktopPetAttachment(
@@ -155,12 +155,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         screen: NSScreen?
     ) {
         guard preferences.showDesktopPet, preferences.showInFloatingBall else {
-            desktopPetController?.hide()
+            petWorldController?.hide()
             return
         }
 
-        ensureDesktopPetController().show(
-            attachedTo: anchorFrame,
+        ensurePetWorldController().show(
+            homeAnchorFrame: anchorFrame,
             on: screen
         )
     }
@@ -171,7 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .removeDuplicates()
             .sink { [weak self] _ in
                 guard let self else { return }
-                self.desktopPetController?.applyAsset(self.preferences.desktopPetAsset)
+                self.petWorldController?.applyAsset(self.preferences.desktopPetAsset)
                 self.refreshDesktopPetVisibility()
             }
             .store(in: &cancellables)

@@ -140,7 +140,7 @@ struct ConfigurationView: View {
                         Text("桌面宠物")
                             .font(.system(size: 13, weight: .medium))
 
-                        Text("在悬浮胶囊旁边显示 \(preferences.desktopPetAsset.displayName)。")
+                        Text("让 \(preferences.desktopPetAsset.displayName) 在屏幕里自由活动，并把悬浮胶囊当作它的家。")
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                     }
@@ -150,7 +150,7 @@ struct ConfigurationView: View {
                 desktopPetEntryButton
 
                 if preferences.showDesktopPet && !preferences.showInFloatingBall {
-                    Text("桌面宠物会跟随悬浮胶囊显示；当前胶囊关闭，所以宠物会先保持隐藏。")
+                    Text("桌面宠物需要悬浮胶囊作为家；当前胶囊关闭，所以宠物会先保持隐藏。")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
@@ -474,7 +474,7 @@ struct ConfigurationView: View {
     private var desktopPetEntryButton: some View {
         featureEntryButton(
             title: "桌宠配置",
-            subtitle: "进入专门页面，预览 \(preferences.desktopPetAsset.displayName) 并管理桌宠显示。"
+            subtitle: "进入专门页面，预览 \(preferences.desktopPetAsset.displayName) 并管理桌宠显示与活动方式。"
         ) {
             page = .desktopPet
         }

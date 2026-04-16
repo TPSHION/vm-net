@@ -41,6 +41,14 @@ final class DesktopPetContentView: NSView {
     private var isUserInteracting = false
     private var isDraggingInteractiveElement = false
 
+    var hasActiveInteraction: Bool {
+        isDraggingInteractiveElement
+    }
+
+    var eventCaptureRectInSelf: CGRect {
+        pointerCaptureRect ?? bounds
+    }
+
     private var backdropWidthConstraint: NSLayoutConstraint?
     private var backdropHeightConstraint: NSLayoutConstraint?
     private var riveLeadingConstraint: NSLayoutConstraint?
