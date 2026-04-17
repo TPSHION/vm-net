@@ -16,6 +16,7 @@ struct ConfigurationView: View {
     @ObservedObject var launchAtLoginManager: LaunchAtLoginManager
     @ObservedObject var throughputStore: ThroughputStore
     @ObservedObject var processTrafficStore: ProcessTrafficStore
+    @ObservedObject var alertStore: AlertStore
     @ObservedObject var speedTestStore: SpeedTestStore
     @ObservedObject var diagnosisStore: NetworkDiagnosisStore
     let onFloatingBallToggle: (Bool) -> Void
@@ -52,6 +53,7 @@ struct ConfigurationView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     launchSection
                     presentationSection
+                    activitySection
                     speedTestEntrySection
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -78,7 +80,8 @@ struct ConfigurationView: View {
     private var activityPage: some View {
         NetworkActivityPageView(
             throughputStore: throughputStore,
-            processTrafficStore: processTrafficStore
+            processTrafficStore: processTrafficStore,
+            alertStore: alertStore
         ) {
             navigationStore.show(.settings)
         }
@@ -306,6 +309,58 @@ struct ConfigurationView: View {
             .padding(4)
         } label: {
             Text(L10n.tr("settings.features.sectionTitle"))
+        }
+    }
+
+    private var activitySection: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 12) {
+                Toggle(isOn: $preferences.activityAlertsEnabled) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(L10n.tr("settings.activity.alertsEnabled.title"))
+                            .font(.system(size: 13, weight: .medium))
+
+                        Text(L10n.tr("settings.activity.alertsEnabled.subtitle"))
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .toggleStyle(.switch)
+
+                Toggle(isOn: $preferences.activityAlertsEnableSystemNotifications) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(L10n.tr("settings.activity.systemNotifications.title"))
+                            .font(.system(size: 13, weight: .medium))
+
+                        Text(L10n.tr("settings.activity.systemNotifications.subtitle"))
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .toggleStyle(.switch)
+                .disabled(!preferences.activityAlertsEnabled)
+
+                if let latestAnomaly = alertStore.recentAnomalies.first {
+                    Divider()
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L10n.tr("settings.activity.latestAlert"))
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary)
+
+                        Text(latestAnomaly.headline)
+                            .font(.system(size: 13, weight: .medium))
+
+                        Text(latestAnomaly.summary)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(4)
+        } label: {
+            Text(L10n.tr("settings.activity.sectionTitle"))
         }
     }
 

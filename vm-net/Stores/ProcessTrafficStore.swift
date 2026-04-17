@@ -34,7 +34,10 @@ final class ProcessTrafficStore: ObservableObject {
         case .idle:
             localizedMessage = L10n.tr("activity.process.status.idle")
         case .streaming:
-            localizedMessage = snapshot.statusMessage
+            localizedMessage = L10n.tr(
+                "activity.process.status.streaming",
+                snapshot.activeProcessCount
+            )
         case .unavailable:
             localizedMessage = L10n.tr("activity.process.status.unavailable")
         case .failed:

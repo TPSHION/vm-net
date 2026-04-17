@@ -47,4 +47,30 @@ struct ProcessTrafficSnapshot: Equatable {
             errorMessage: nil
         )
     }
+
+    static func streaming(
+        processes: [ProcessTrafficProcessRecord],
+        lastUpdatedAt: Date
+    ) -> ProcessTrafficSnapshot {
+        ProcessTrafficSnapshot(
+            phase: .streaming,
+            statusMessage: L10n.tr(
+                "activity.process.status.streaming",
+                processes.count
+            ),
+            processes: processes,
+            lastUpdatedAt: lastUpdatedAt,
+            errorMessage: nil
+        )
+    }
+
+    static func failed(_ message: String) -> ProcessTrafficSnapshot {
+        ProcessTrafficSnapshot(
+            phase: .failed,
+            statusMessage: L10n.tr("activity.process.status.failed"),
+            processes: [],
+            lastUpdatedAt: nil,
+            errorMessage: message
+        )
+    }
 }

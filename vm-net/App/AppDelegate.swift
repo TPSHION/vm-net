@@ -17,6 +17,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let configurationNavigationStore = ConfigurationNavigationStore()
     private let throughputStore = ThroughputStore()
     private let processTrafficStore = ProcessTrafficStore()
+    private lazy var alertStore = AlertStore(
+        preferences: preferences,
+        processTrafficStore: processTrafficStore
+    )
     private let speedTestStore = SpeedTestStore()
     private let diagnosisStore = NetworkDiagnosisStore()
     private var cancellables = Set<AnyCancellable>()
@@ -30,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         launchAtLoginManager: launchAtLoginManager,
         throughputStore: throughputStore,
         processTrafficStore: processTrafficStore,
+        alertStore: alertStore,
         speedTestStore: speedTestStore,
         diagnosisStore: diagnosisStore,
         onFloatingBallToggle: { [weak self] isEnabled in
@@ -261,6 +266,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.speedTestStore.reloadLocalization()
                 self.diagnosisStore.reloadLocalization()
                 self.processTrafficStore.reloadLocalization()
+                self.alertStore.reloadLocalization()
             }
             .store(in: &cancellables)
 

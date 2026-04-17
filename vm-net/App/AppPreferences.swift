@@ -133,6 +133,9 @@ final class AppPreferences: ObservableObject {
             "cn.tpshion.vm-net.floating-ball-screen-identifier"
         static let desktopPetRelativeHomeOffsets =
             "cn.tpshion.vm-net.desktop-pet-relative-home-offsets"
+        static let activityAlertsEnabled = "cn.tpshion.vm-net.activity-alerts-enabled"
+        static let activityAlertsEnableSystemNotifications =
+            "cn.tpshion.vm-net.activity-alerts-system-notifications"
     }
 
     private let defaults: UserDefaults
@@ -258,6 +261,21 @@ final class AppPreferences: ObservableObject {
         }
     }
 
+    @Published var activityAlertsEnabled: Bool {
+        didSet {
+            defaults.set(activityAlertsEnabled, forKey: Keys.activityAlertsEnabled)
+        }
+    }
+
+    @Published var activityAlertsEnableSystemNotifications: Bool {
+        didSet {
+            defaults.set(
+                activityAlertsEnableSystemNotifications,
+                forKey: Keys.activityAlertsEnableSystemNotifications
+            )
+        }
+    }
+
     var floatingBallOrigin: CGPoint? {
         guard let floatingBallOriginX, let floatingBallOriginY else {
             return nil
@@ -346,6 +364,12 @@ final class AppPreferences: ObservableObject {
         self.desktopPetRelativeHomeOffsets = defaults.dictionary(
             forKey: Keys.desktopPetRelativeHomeOffsets
         ) as? [String: [String: Double]] ?? [:]
+        self.activityAlertsEnabled =
+            defaults.object(forKey: Keys.activityAlertsEnabled) as? Bool ?? true
+        self.activityAlertsEnableSystemNotifications =
+            defaults.object(
+                forKey: Keys.activityAlertsEnableSystemNotifications
+            ) as? Bool ?? false
         L10n.setLanguage(appLanguage)
     }
 

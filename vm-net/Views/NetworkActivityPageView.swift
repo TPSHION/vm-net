@@ -10,9 +10,55 @@ import SwiftUI
 
 struct NetworkActivityPageView: View {
 
+    private enum ProcessSortOption: String, CaseIterable, Identifiable {
+        case total
+        case download
+        case upload
+        case connections
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .total:
+                return L10n.tr("activity.process.sort.total")
+            case .download:
+                return L10n.tr("activity.process.sort.download")
+            case .upload:
+                return L10n.tr("activity.process.sort.upload")
+            case .connections:
+                return L10n.tr("activity.process.sort.connections")
+            }
+        }
+    }
+
+    private enum ProcessFilterOption: String, CaseIterable, Identifiable {
+        case all
+        case background
+        case alerted
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .all:
+                return L10n.tr("activity.process.filter.all")
+            case .background:
+                return L10n.tr("activity.process.filter.background")
+            case .alerted:
+                return L10n.tr("activity.process.filter.alerted")
+            }
+        }
+    }
+
     @ObservedObject var throughputStore: ThroughputStore
     @ObservedObject var processTrafficStore: ProcessTrafficStore
+    @ObservedObject var alertStore: AlertStore
     let onBack: () -> Void
+
+    @State private var sortOption: ProcessSortOption = .total
+    @State private var filterOption: ProcessFilterOption = .all
+    @State private var searchQuery = ""
 
     private let byteRateFormatter = ByteRateFormatter()
 
@@ -24,10 +70,16 @@ struct NetworkActivityPageView: View {
         processTrafficStore.snapshot
     }
 
-    private var topProcesses: [ProcessTrafficProcessRecord] {
+    private var filteredProcesses: [ProcessTrafficProcessRecord] {
         processSnapshot.processes
-            .sorted { $0.totalBytesPerSecond > $1.totalBytesPerSecond }
-            .prefix(10)
+            .filter(matchesFilter(_:))
+            .filter(matchesSearch(_:))
+            .sorted(by: sortComparator(_:_:))
+    }
+
+    private var displayedProcesses: [ProcessTrafficProcessRecord] {
+        filteredProcesses
+            .prefix(20)
             .map { $0 }
     }
 
@@ -38,6 +90,7 @@ struct NetworkActivityPageView: View {
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 18) {
                     summarySection
+                    alertSection
                     processSection
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -126,10 +179,23 @@ struct NetworkActivityPageView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
 
-                if topProcesses.isEmpty {
+                if let errorMessage = processSnapshot.errorMessage {
+                    Text(errorMessage)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color(nsColor: .systemRed))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                processControls
+
+                if processSnapshot.processes.isEmpty {
                     emptyProcessState
+                } else if displayedProcesses.isEmpty {
+                    emptyFilteredState
                 } else {
-                    ForEach(topProcesses) { process in
+                    processResultsSummary
+
+                    ForEach(displayedProcesses) { process in
                         processRow(process)
                     }
                 }
@@ -139,6 +205,71 @@ struct NetworkActivityPageView: View {
         } label: {
             Text(L10n.tr("activity.process.sectionTitle"))
         }
+    }
+
+    private var alertSection: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 12) {
+                if alertStore.recentAnomalies.isEmpty {
+                    Text(L10n.tr("activity.alert.empty"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(alertStore.recentAnomalies) { anomaly in
+                        alertRow(anomaly)
+                    }
+                }
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } label: {
+            Text(L10n.tr("activity.alert.sectionTitle"))
+        }
+    }
+
+    private var processControls: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Picker(
+                L10n.tr("activity.process.controls.filter"),
+                selection: $filterOption
+            ) {
+                ForEach(ProcessFilterOption.allCases) { option in
+                    Text(option.title).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            HStack(alignment: .center, spacing: 10) {
+                TextField(
+                    L10n.tr("activity.process.search.placeholder"),
+                    text: $searchQuery
+                )
+                .textFieldStyle(.roundedBorder)
+
+                Picker(
+                    L10n.tr("activity.process.controls.sort"),
+                    selection: $sortOption
+                ) {
+                    ForEach(ProcessSortOption.allCases) { option in
+                        Text(option.title).tag(option)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 130)
+            }
+        }
+    }
+
+    private var processResultsSummary: some View {
+        Text(
+            L10n.tr(
+                "activity.process.results",
+                displayedProcesses.count,
+                filteredProcesses.count
+            )
+        )
+        .font(.system(size: 11))
+        .foregroundStyle(.secondary)
     }
 
     private var emptyProcessState: some View {
@@ -153,6 +284,32 @@ struct NetworkActivityPageView: View {
                     .font(.system(size: 13, weight: .medium))
 
                 Text(L10n.tr("activity.process.emptyDescription"))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.45))
+        )
+    }
+
+    private var emptyFilteredState: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "line.3.horizontal.decrease.circle")
+                .font(.system(size: 24, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 32, height: 32)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L10n.tr("activity.process.emptyFilteredTitle"))
+                    .font(.system(size: 13, weight: .medium))
+
+                Text(L10n.tr("activity.process.emptyFilteredDescription"))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -264,5 +421,133 @@ struct NetworkActivityPageView: View {
             Capsule(style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor).opacity(0.6))
         )
+    }
+
+    private func alertRow(_ anomaly: NetworkAnomaly) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Circle()
+                .fill(Color(nsColor: anomaly.severity.tintColor))
+                .frame(width: 10, height: 10)
+                .padding(.top, 6)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(anomaly.headline)
+                        .font(.system(size: 13, weight: .medium))
+
+                    Text(anomaly.kind.title)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Color(nsColor: anomaly.severity.tintColor))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color(nsColor: anomaly.severity.tintColor).opacity(0.12))
+                        )
+                }
+
+                Text(anomaly.summary)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(SpeedTestFormatter.historyTimestampString(date: anomaly.occurredAt))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.55))
+        )
+    }
+
+    private func matchesFilter(_ process: ProcessTrafficProcessRecord) -> Bool {
+        switch filterOption {
+        case .all:
+            return true
+        case .background:
+            guard let bundleIdentifier = process.bundleIdentifier else {
+                return false
+            }
+            let frontmostBundleIdentifier = NSWorkspace.shared.frontmostApplication?
+                .bundleIdentifier
+            return bundleIdentifier != frontmostBundleIdentifier
+                && bundleIdentifier != Bundle.main.bundleIdentifier
+        case .alerted:
+            return isAlertedProcess(process)
+        }
+    }
+
+    private func matchesSearch(_ process: ProcessTrafficProcessRecord) -> Bool {
+        let trimmedQuery = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else { return true }
+
+        let loweredQuery = trimmedQuery.localizedLowercase
+        if process.processName.localizedLowercase.contains(loweredQuery) {
+            return true
+        }
+
+        if let bundleIdentifier = process.bundleIdentifier,
+           bundleIdentifier.localizedLowercase.contains(loweredQuery) {
+            return true
+        }
+
+        return process.remoteHostsTop.contains {
+            $0.localizedLowercase.contains(loweredQuery)
+        }
+    }
+
+    private func sortComparator(
+        _ lhs: ProcessTrafficProcessRecord,
+        _ rhs: ProcessTrafficProcessRecord
+    ) -> Bool {
+        switch sortOption {
+        case .total:
+            if lhs.totalBytesPerSecond != rhs.totalBytesPerSecond {
+                return lhs.totalBytesPerSecond > rhs.totalBytesPerSecond
+            }
+        case .download:
+            if lhs.downloadBytesPerSecond != rhs.downloadBytesPerSecond {
+                return lhs.downloadBytesPerSecond > rhs.downloadBytesPerSecond
+            }
+        case .upload:
+            if lhs.uploadBytesPerSecond != rhs.uploadBytesPerSecond {
+                return lhs.uploadBytesPerSecond > rhs.uploadBytesPerSecond
+            }
+        case .connections:
+            if lhs.activeConnectionCount != rhs.activeConnectionCount {
+                return lhs.activeConnectionCount > rhs.activeConnectionCount
+            }
+        }
+
+        if lhs.totalBytesPerSecond != rhs.totalBytesPerSecond {
+            return lhs.totalBytesPerSecond > rhs.totalBytesPerSecond
+        }
+
+        if lhs.activeConnectionCount != rhs.activeConnectionCount {
+            return lhs.activeConnectionCount > rhs.activeConnectionCount
+        }
+
+        if lhs.processName != rhs.processName {
+            return lhs.processName.localizedStandardCompare(rhs.processName)
+                == .orderedAscending
+        }
+
+        return lhs.pid < rhs.pid
+    }
+
+    private func isAlertedProcess(_ process: ProcessTrafficProcessRecord) -> Bool {
+        alertStore.recentAnomalies.contains { anomaly in
+            if let bundleIdentifier = process.bundleIdentifier,
+               let anomalyBundleIdentifier = anomaly.bundleIdentifier {
+                return bundleIdentifier == anomalyBundleIdentifier
+            }
+
+            return anomaly.processName == process.processName
+        }
     }
 }
