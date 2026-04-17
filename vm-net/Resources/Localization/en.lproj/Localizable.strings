@@ -19,6 +19,7 @@
 "navigation.backToSettings" = "Back to Settings";
 
 "menu.openWindow" = "Open vm-net";
+"menu.openActivity" = "Open Network Activity";
 "menu.quit" = "Quit";
 
 "statusItem.tooltip.monitoringInterface" = "Monitoring %@";
@@ -57,12 +58,33 @@
 "settings.presentation.resetAppearance" = "Reset Appearance";
 "settings.presentation.displayMode" = "Throughput Display Mode";
 "settings.features.sectionTitle" = "Features";
+"settings.feature.activity.title" = "Network Activity";
+"settings.feature.activity.subtitle" = "Open the bandwidth overview and process activity entry point.";
 "settings.feature.speedTest.title" = "Speed Test";
 "settings.feature.speedTest.subtitle" = "Open the M-Lab speed test page.";
 "settings.feature.desktopPet.title" = "Desktop Pet";
 "settings.feature.desktopPet.subtitle" = "Open the pet page to preview %@ and adjust behavior.";
 "settings.feature.diagnosis.title" = "Network Diagnosis";
 "settings.feature.diagnosis.subtitle" = "Check network path, DNS, and HTTPS.";
+
+"activity.header.title" = "Network Activity";
+"activity.header.subtitle" = "Total bandwidth is live, and the process pipeline is ready for the helper.";
+"activity.summary.sectionTitle" = "Live Summary";
+"activity.summary.download" = "Current Download";
+"activity.summary.upload" = "Current Upload";
+"activity.summary.interface" = "Interface";
+"activity.summary.activeProcesses" = "Active Processes";
+"activity.summary.lastUpdated" = "Updated %@";
+"activity.process.sectionTitle" = "Process Activity";
+"activity.process.emptyTitle" = "Process activity data is unavailable";
+"activity.process.emptyDescription" = "The process-traffic pipeline is wired in. Live rankings appear here once the helper starts producing snapshots.";
+"activity.process.status.idle" = "Waiting for process activity sampling to start.";
+"activity.process.status.unavailable" = "The process activity collector is not connected.";
+"activity.process.status.failed" = "Process activity sampling failed.";
+"activity.process.metric.download" = "Download";
+"activity.process.metric.upload" = "Upload";
+"activity.process.metric.connections" = "Connections";
+"activity.process.metric.hostsValue" = "Remote hosts: %@";
 
 "speedTest.start" = "Start Test";
 "speedTest.currentStatus" = "Current Status";

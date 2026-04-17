@@ -10,30 +10,27 @@ import SwiftUI
 
 struct ConfigurationView: View {
 
-    private enum Page {
-        case settings
-        case speedTest
-        case diagnosis
-        case desktopPet
-    }
-
     @ObservedObject var preferences: AppPreferences
+    @ObservedObject var navigationStore: ConfigurationNavigationStore
     @ObservedObject var desktopPetAccessStore: DesktopPetAccessStore
     @ObservedObject var launchAtLoginManager: LaunchAtLoginManager
+    @ObservedObject var throughputStore: ThroughputStore
+    @ObservedObject var processTrafficStore: ProcessTrafficStore
     @ObservedObject var speedTestStore: SpeedTestStore
     @ObservedObject var diagnosisStore: NetworkDiagnosisStore
     let onFloatingBallToggle: (Bool) -> Void
     let onDesktopPetToggle: (Bool) -> Void
     let onDesktopPetRoamingToggle: (Bool) -> Void
     let onDesktopPetAssetApply: (DesktopPetAssetID) -> Void
-    @State private var page: Page = .settings
     @StateObject private var appStoreUpdateStore = AppStoreUpdateStore()
 
     var body: some View {
         Group {
-            switch page {
+            switch navigationStore.page {
             case .settings:
                 settingsPage
+            case .activity:
+                activityPage
             case .speedTest:
                 speedTestPage
             case .diagnosis:
@@ -68,13 +65,22 @@ struct ConfigurationView: View {
 
     private var speedTestPage: some View {
         SpeedTestPageView(store: speedTestStore) {
-            page = .settings
+            navigationStore.show(.settings)
         }
     }
 
     private var diagnosisPage: some View {
         NetworkDiagnosisPageView(store: diagnosisStore) {
-            page = .settings
+            navigationStore.show(.settings)
+        }
+    }
+
+    private var activityPage: some View {
+        NetworkActivityPageView(
+            throughputStore: throughputStore,
+            processTrafficStore: processTrafficStore
+        ) {
+            navigationStore.show(.settings)
         }
     }
 
@@ -83,7 +89,7 @@ struct ConfigurationView: View {
             preferences: preferences,
             desktopPetAccessStore: desktopPetAccessStore,
             onBack: {
-                page = .settings
+                navigationStore.show(.settings)
             },
             onDesktopPetToggle: onDesktopPetToggle,
             onDesktopPetRoamingToggle: onDesktopPetRoamingToggle,
@@ -292,16 +298,10 @@ struct ConfigurationView: View {
 
     private var speedTestEntrySection: some View {
         GroupBox {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: 12) {
-                    speedTestEntryButton
-                    diagnosisEntryButton
-                }
-
-                VStack(alignment: .leading, spacing: 12) {
-                    speedTestEntryButton
-                    diagnosisEntryButton
-                }
+            VStack(alignment: .leading, spacing: 12) {
+                activityEntryButton
+                speedTestEntryButton
+                diagnosisEntryButton
             }
             .padding(4)
         } label: {
@@ -371,7 +371,7 @@ struct ConfigurationView: View {
 
                 guard desktopPetAccessStore.prepareForUse() else {
                     preferences.showDesktopPet = false
-                    page = .desktopPet
+                    navigationStore.show(.desktopPet)
                     return
                 }
 
@@ -579,7 +579,16 @@ struct ConfigurationView: View {
             title: L10n.tr("settings.feature.speedTest.title"),
             subtitle: L10n.tr("settings.feature.speedTest.subtitle")
         ) {
-            page = .speedTest
+            navigationStore.show(.speedTest)
+        }
+    }
+
+    private var activityEntryButton: some View {
+        featureEntryButton(
+            title: L10n.tr("settings.feature.activity.title"),
+            subtitle: L10n.tr("settings.feature.activity.subtitle")
+        ) {
+            navigationStore.show(.activity)
         }
     }
 
@@ -588,7 +597,7 @@ struct ConfigurationView: View {
             title: L10n.tr("settings.feature.desktopPet.title"),
             subtitle: L10n.tr("settings.feature.desktopPet.subtitle", preferences.desktopPetAsset.displayName)
         ) {
-            page = .desktopPet
+            navigationStore.show(.desktopPet)
         }
     }
 
@@ -597,13 +606,13 @@ struct ConfigurationView: View {
             title: L10n.tr("settings.feature.diagnosis.title"),
             subtitle: L10n.tr("settings.feature.diagnosis.subtitle")
         ) {
-            page = .diagnosis
+            navigationStore.show(.diagnosis)
         }
     }
 
     private var desktopPetPremiumCard: some View {
         Button {
-            page = .desktopPet
+            navigationStore.show(.desktopPet)
         } label: {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 12) {

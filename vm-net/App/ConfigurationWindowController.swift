@@ -18,8 +18,11 @@ final class ConfigurationWindowController: NSWindowController {
 
     init(
         preferences: AppPreferences,
+        navigationStore: ConfigurationNavigationStore,
         desktopPetAccessStore: DesktopPetAccessStore,
         launchAtLoginManager: LaunchAtLoginManager,
+        throughputStore: ThroughputStore,
+        processTrafficStore: ProcessTrafficStore,
         speedTestStore: SpeedTestStore,
         diagnosisStore: NetworkDiagnosisStore,
         onFloatingBallToggle: @escaping (Bool) -> Void,
@@ -29,8 +32,11 @@ final class ConfigurationWindowController: NSWindowController {
     ) {
         let rootView = ConfigurationView(
             preferences: preferences,
+            navigationStore: navigationStore,
             desktopPetAccessStore: desktopPetAccessStore,
             launchAtLoginManager: launchAtLoginManager,
+            throughputStore: throughputStore,
+            processTrafficStore: processTrafficStore,
             speedTestStore: speedTestStore,
             diagnosisStore: diagnosisStore,
             onFloatingBallToggle: onFloatingBallToggle,

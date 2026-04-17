@@ -23,6 +23,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private var cancellables: Set<AnyCancellable> = []
 
     var openWindowHandler: (() -> Void)?
+    var openNetworkActivityHandler: (() -> Void)?
 
     init(
         store: ThroughputStore,
@@ -47,12 +48,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             statusItem.menu
             ?? AppControlMenuFactory.makeMenu(
                 target: self,
-                openSelector: #selector(handleOpenWindow)
+                openWindowSelector: #selector(handleOpenWindow),
+                openActivitySelector: #selector(handleOpenNetworkActivity)
             )
         AppControlMenuFactory.populateMenu(
             menu,
             target: self,
-            openSelector: #selector(handleOpenWindow)
+            openWindowSelector: #selector(handleOpenWindow),
+            openActivitySelector: #selector(handleOpenNetworkActivity)
         )
         menu.delegate = self
         statusItem.menu = menu
@@ -96,7 +99,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         AppControlMenuFactory.populateMenu(
             menu,
             target: self,
-            openSelector: #selector(handleOpenWindow)
+            openWindowSelector: #selector(handleOpenWindow),
+            openActivitySelector: #selector(handleOpenNetworkActivity)
         )
     }
 
@@ -118,6 +122,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc
     private func handleOpenWindow() {
         openWindowHandler?()
+    }
+
+    @objc
+    private func handleOpenNetworkActivity() {
+        openNetworkActivityHandler?()
     }
 
     func invalidate() {

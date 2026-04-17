@@ -14,7 +14,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let preferences = AppPreferences()
     private let launchAtLoginManager = LaunchAtLoginManager()
     private let desktopPetAccessStore = DesktopPetAccessStore()
+    private let configurationNavigationStore = ConfigurationNavigationStore()
     private let throughputStore = ThroughputStore()
+    private let processTrafficStore = ProcessTrafficStore()
     private let speedTestStore = SpeedTestStore()
     private let diagnosisStore = NetworkDiagnosisStore()
     private var cancellables = Set<AnyCancellable>()
@@ -23,8 +25,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var petWorldController: PetWorldController?
     private lazy var configurationWindowController = ConfigurationWindowController(
         preferences: preferences,
+        navigationStore: configurationNavigationStore,
         desktopPetAccessStore: desktopPetAccessStore,
         launchAtLoginManager: launchAtLoginManager,
+        throughputStore: throughputStore,
+        processTrafficStore: processTrafficStore,
         speedTestStore: speedTestStore,
         diagnosisStore: diagnosisStore,
         onFloatingBallToggle: { [weak self] isEnabled in
@@ -74,7 +79,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         petWorldController = nil
     }
 
-    func showMainWindow() {
+    func showMainWindow(page: ConfigurationPage = .settings) {
+        configurationNavigationStore.show(page)
         launchAtLoginManager.refresh()
         refreshLocalization()
         Task { [weak self] in
@@ -134,7 +140,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             preferences: preferences
         )
         statusItemController.openWindowHandler = { [weak self] in
-            self?.showMainWindow()
+            self?.showMainWindow(page: .settings)
+        }
+        statusItemController.openNetworkActivityHandler = { [weak self] in
+            self?.showMainWindow(page: .activity)
         }
 
         self.statusItemController = statusItemController
@@ -151,7 +160,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             preferences: preferences
         )
         floatingBallController.openWindowHandler = { [weak self] in
-            self?.showMainWindow()
+            self?.showMainWindow(page: .settings)
+        }
+        floatingBallController.openNetworkActivityHandler = { [weak self] in
+            self?.showMainWindow(page: .activity)
         }
         floatingBallController.frameChangeHandler = { [weak self] frame, screen in
             self?.updateDesktopPetAttachment(anchorFrame: frame, screen: screen)
@@ -248,6 +260,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 guard let self else { return }
                 self.speedTestStore.reloadLocalization()
                 self.diagnosisStore.reloadLocalization()
+                self.processTrafficStore.reloadLocalization()
             }
             .store(in: &cancellables)
 

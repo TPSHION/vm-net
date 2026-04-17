@@ -25,6 +25,7 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenu
     private var cancellables: Set<AnyCancellable> = []
 
     var openWindowHandler: (() -> Void)?
+    var openNetworkActivityHandler: (() -> Void)?
     var frameChangeHandler: ((CGRect, NSScreen?) -> Void)?
 
     var currentFrame: CGRect? {
@@ -111,7 +112,8 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenu
         contentView.translatesAutoresizingMaskIntoConstraints = false
         let menu = AppControlMenuFactory.makeMenu(
             target: self,
-            openSelector: #selector(handleOpenWindow)
+            openWindowSelector: #selector(handleOpenWindow),
+            openActivitySelector: #selector(handleOpenNetworkActivity)
         )
         menu.delegate = self
         contentView.menu = menu
@@ -174,11 +176,17 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenu
         openWindowHandler?()
     }
 
+    @objc
+    private func handleOpenNetworkActivity() {
+        openNetworkActivityHandler?()
+    }
+
     func menuNeedsUpdate(_ menu: NSMenu) {
         AppControlMenuFactory.populateMenu(
             menu,
             target: self,
-            openSelector: #selector(handleOpenWindow)
+            openWindowSelector: #selector(handleOpenWindow),
+            openActivitySelector: #selector(handleOpenNetworkActivity)
         )
     }
 
@@ -187,7 +195,8 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenu
         AppControlMenuFactory.populateMenu(
             menu,
             target: self,
-            openSelector: #selector(handleOpenWindow)
+            openWindowSelector: #selector(handleOpenWindow),
+            openActivitySelector: #selector(handleOpenNetworkActivity)
         )
     }
 

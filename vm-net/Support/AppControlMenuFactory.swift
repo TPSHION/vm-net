@@ -11,13 +11,15 @@ enum AppControlMenuFactory {
 
     static func makeMenu(
         target: AnyObject,
-        openSelector: Selector
+        openWindowSelector: Selector,
+        openActivitySelector: Selector
     ) -> NSMenu {
         let menu = NSMenu()
         populateMenu(
             menu,
             target: target,
-            openSelector: openSelector
+            openWindowSelector: openWindowSelector,
+            openActivitySelector: openActivitySelector
         )
         return menu
     }
@@ -25,17 +27,27 @@ enum AppControlMenuFactory {
     static func populateMenu(
         _ menu: NSMenu,
         target: AnyObject,
-        openSelector: Selector
+        openWindowSelector: Selector,
+        openActivitySelector: Selector
     ) {
         menu.removeAllItems()
 
         let openWindowItem = NSMenuItem(
             title: L10n.tr("menu.openWindow"),
-            action: openSelector,
+            action: openWindowSelector,
             keyEquivalent: ""
         )
         openWindowItem.target = target
         menu.addItem(openWindowItem)
+
+        let openActivityItem = NSMenuItem(
+            title: L10n.tr("menu.openActivity"),
+            action: openActivitySelector,
+            keyEquivalent: ""
+        )
+        openActivityItem.target = target
+        menu.addItem(openActivityItem)
+
         menu.addItem(.separator())
 
         let quitItem = NSMenuItem(

@@ -19,6 +19,7 @@
 "navigation.backToSettings" = "返回设置";
 
 "menu.openWindow" = "打开 vm-net";
+"menu.openActivity" = "打开网络活动";
 "menu.quit" = "退出";
 
 "statusItem.tooltip.monitoringInterface" = "正在监控 %@";
@@ -57,12 +58,33 @@
 "settings.presentation.resetAppearance" = "恢复默认外观";
 "settings.presentation.displayMode" = "速率显示模式";
 "settings.features.sectionTitle" = "功能";
+"settings.feature.activity.title" = "网络活动";
+"settings.feature.activity.subtitle" = "查看当前带宽概览和进程流量入口。";
 "settings.feature.speedTest.title" = "网络测速";
 "settings.feature.speedTest.subtitle" = "打开测速页，运行 M-Lab 测试。";
 "settings.feature.desktopPet.title" = "桌宠配置";
 "settings.feature.desktopPet.subtitle" = "打开桌宠页，预览 %@ 并调整行为。";
 "settings.feature.diagnosis.title" = "网络诊断";
 "settings.feature.diagnosis.subtitle" = "检查网络路径、DNS 和 HTTPS。";
+
+"activity.header.title" = "网络活动";
+"activity.header.subtitle" = "总带宽已接入，进程链路已预留。";
+"activity.summary.sectionTitle" = "实时概览";
+"activity.summary.download" = "当前下载";
+"activity.summary.upload" = "当前上传";
+"activity.summary.interface" = "监控接口";
+"activity.summary.activeProcesses" = "活跃进程";
+"activity.summary.lastUpdated" = "最近更新：%@";
+"activity.process.sectionTitle" = "进程流量";
+"activity.process.emptyTitle" = "进程流量数据暂不可用";
+"activity.process.emptyDescription" = "进程流量采集链路已接入，待 helper 输出后会在这里显示实时排行。";
+"activity.process.status.idle" = "等待进程流量采集开始。";
+"activity.process.status.unavailable" = "进程活动采集器尚未连接。";
+"activity.process.status.failed" = "进程活动采集失败。";
+"activity.process.metric.download" = "下载";
+"activity.process.metric.upload" = "上传";
+"activity.process.metric.connections" = "连接数";
+"activity.process.metric.hostsValue" = "远端域名：%@";
 
 "speedTest.start" = "开始测速";
 "speedTest.currentStatus" = "当前状态";
