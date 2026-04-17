@@ -7,11 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7478E5E52F91E5A8003FF15F /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7478E5E42F91E5A8003FF15F /* StoreKit.framework */; };
 		95A479D9CDB4CA1EE621D6BC /* RiveRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 6BDE6E9E9861464DA220F6AE /* RiveRuntime */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		746F06D62D9F95840091D208 /* vm-net.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "vm-net.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		7478E5E42F91E5A8003FF15F /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -28,6 +30,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				95A479D9CDB4CA1EE621D6BC /* RiveRuntime in Frameworks */,
+				7478E5E52F91E5A8003FF15F /* StoreKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -38,6 +41,7 @@
 			isa = PBXGroup;
 			children = (
 				746F06D82D9F95840091D208 /* vm-net */,
+				7478E5E32F91E5A8003FF15F /* Frameworks */,
 				746F06D72D9F95840091D208 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -48,6 +52,14 @@
 				746F06D62D9F95840091D208 /* vm-net.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		7478E5E32F91E5A8003FF15F /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				7478E5E42F91E5A8003FF15F /* StoreKit.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -279,7 +291,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.5;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "cn.tpshion.vm-net";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -312,7 +324,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.5;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "cn.tpshion.vm-net";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;

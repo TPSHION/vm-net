@@ -30,6 +30,12 @@
 "displayMode.realtime.summary" = "Shows instantaneous throughput.";
 
 "settings.header.subtitle" = "Runs in the status bar by default, with an optional floating capsule.";
+"settings.header.update.action" = "Check for Updates";
+"settings.header.update.checking" = "Checking…";
+"settings.header.update.available" = "Version %@ is available. App Store opened.";
+"settings.header.update.current" = "You're up to date (%@).";
+"settings.header.update.failed" = "Could not check for updates right now.";
+"settings.header.update.unavailable" = "App Store version information is not available yet.";
 "settings.launch.sectionTitle" = "Launch";
 "settings.launch.autoStart.title" = "Launch at Login";
 "settings.launch.autoStart.subtitle" = "Start vm-net automatically after signing in to macOS.";

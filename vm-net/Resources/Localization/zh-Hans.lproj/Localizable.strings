@@ -30,6 +30,12 @@
 "displayMode.realtime.summary" = "直接显示瞬时速率。";
 
 "settings.header.subtitle" = "默认显示在状态栏，也可开启悬浮胶囊。";
+"settings.header.update.action" = "检查更新";
+"settings.header.update.checking" = "检查中…";
+"settings.header.update.available" = "发现新版本 %@，已打开 App Store。";
+"settings.header.update.current" = "当前已是最新版本（%@）。";
+"settings.header.update.failed" = "暂时无法检查更新。";
+"settings.header.update.unavailable" = "App Store 暂未提供版本信息。";
 "settings.launch.sectionTitle" = "启动";
 "settings.launch.autoStart.title" = "开机自动启动";
 "settings.launch.autoStart.subtitle" = "登录 macOS 后自动启动 vm-net。";

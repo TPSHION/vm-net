@@ -27,6 +27,7 @@ struct ConfigurationView: View {
     let onDesktopPetRoamingToggle: (Bool) -> Void
     let onDesktopPetAssetApply: (DesktopPetAssetID) -> Void
     @State private var page: Page = .settings
+    @StateObject private var appStoreUpdateStore = AppStoreUpdateStore()
 
     var body: some View {
         Group {
@@ -92,9 +93,49 @@ struct ConfigurationView: View {
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(L10n.tr("settings.header.subtitle"))
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(L10n.tr("settings.header.subtitle"))
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+
+                Spacer(minLength: 0)
+
+                Button {
+                    Task {
+                        await appStoreUpdateStore.checkForUpdates()
+                    }
+                } label: {
+                    if appStoreUpdateStore.isChecking {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text(L10n.tr("settings.header.update.checking"))
+                        }
+                    } else {
+                        Text(L10n.tr("settings.header.update.action"))
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(appStoreUpdateStore.isChecking)
+            }
+
+            if let updateMessage = appStoreUpdateStore.message {
+                Text(updateMessage)
+                    .font(.system(size: 12))
+                    .foregroundStyle(updateMessageColor)
+            }
+        }
+    }
+
+    private var updateMessageColor: Color {
+        switch appStoreUpdateStore.messageKind {
+        case .neutral:
+            return .secondary
+        case .success:
+            return Color(nsColor: .systemGreen)
+        case .error:
+            return Color(nsColor: .systemRed)
         }
     }
 
