@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>vm-net Privacy Policy</title>
+  <meta
+    name="description"
+    content="Privacy Policy for vm-net, a macOS menu bar network utility with speed test, network diagnosis, update check, and optional desktop pet features."
+  >
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      font-size: 16px;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+        Arial, sans-serif;
+      color: #1f2937;
+      background: #ffffff;
+      line-height: 1.7;
+    }
+
+    a {
+      color: #0f4c81;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    code {
+      padding: 0.1rem 0.3rem;
+      border-radius: 4px;
+      background: #f3f4f6;
+      font-size: 0.92rem;
+    }
+
+    .page {
+      width: min(calc(100% - 40px), 860px);
+      margin: 0 auto;
+      padding: 48px 0 72px;
+    }
+
+    .header {
+      margin-bottom: 36px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+
+    .product {
+      margin: 0;
+      color: #6b7280;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .language-switcher {
+      display: inline-flex;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .language-switcher button {
+      border: 0;
+      background: #ffffff;
+      color: #4b5563;
+      padding: 8px 12px;
+      font: inherit;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .language-switcher button + button {
+      border-left: 1px solid #d1d5db;
+    }
+
+    .language-switcher button.active {
+      background: #111827;
+      color: #ffffff;
+    }
+
+    h1 {
+      margin: 0;
+      color: #111827;
+      font-size: 2.25rem;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+    }
+
+    .lead {
+      margin: 16px 0 0;
+      color: #4b5563;
+      font-size: 1rem;
+    }
+
+    .meta {
+      margin-top: 14px;
+      color: #6b7280;
+      font-size: 0.95rem;
+    }
+
+    section {
+      margin-top: 28px;
+    }
+
+    h2 {
+      margin: 0 0 10px;
+      color: #111827;
+      font-size: 1.2rem;
+      line-height: 1.35;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    p + p,
+    ul + p,
+    p + ul {
+      margin-top: 12px;
+    }
+
+    ul {
+      margin: 12px 0 0;
+      padding-left: 1.3rem;
+    }
+
+    li + li {
+      margin-top: 0.45rem;
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        width: min(calc(100% - 24px), 860px);
+        padding: 32px 0 48px;
+      }
+
+      h1 {
+        font-size: 1.9rem;
+      }
+
+      .header-top {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <div class="header-top">
+        <p class="product">vm-net</p>
+        <div class="language-switcher" aria-label="Language Switcher">
+          <button type="button" data-lang-button="en">EN</button>
+          <button type="button" data-lang-button="zh">中文</button>
+        </div>
+      </div>
+      <h1 data-i18n="pageTitle">Privacy Policy</h1>
+      <p class="lead" data-i18n="pageLead">
+        This page explains what data vm-net handles, why it is handled, and
+        which parts stay on your device versus being sent to external services.
+      </p>
+      <div class="meta" data-i18n="lastUpdated">
+        Last updated: April 17, 2026
+      </div>
+    </header>
+
+    <section>
+      <h2 data-i18n="section1Title">1. Summary</h2>
+      <ul>
+        <li data-i18n="section1Item1">vm-net does not require account registration.</li>
+        <li data-i18n="section1Item2">vm-net primarily stores preferences and recent results locally on your Mac.</li>
+        <li data-i18n="section1Item3">vm-net does not include third-party advertising SDKs or analytics SDKs in the current project.</li>
+        <li data-i18n="section1Item4">When you run network features, the app sends requests to the relevant external services needed to complete those features.</li>
+        <li data-i18n="section1Item5">When you buy or restore the Desktop Pet unlock, Apple processes the purchase through StoreKit.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 data-i18n="section2Title">2. Data Stored Locally on Your Device</h2>
+      <p data-i18n="section2Body1">
+        vm-net stores app data locally using Apple system storage such as UserDefaults. Based on the current project, local data may include:
+      </p>
+      <ul>
+        <li data-i18n="section2Item1">App language and display preferences</li>
+        <li data-i18n="section2Item2">Floating capsule visibility, colors, transparency, and last position</li>
+        <li data-i18n="section2Item3">Desktop Pet settings, selected pet, and roaming behavior</li>
+        <li data-i18n="section2Item4">Recent speed test results</li>
+        <li data-i18n="section2Item5">Recent network diagnosis results and selected diagnosis target</li>
+        <li data-i18n="section2Item6">Desktop Pet trial start time and local unlock state cache</li>
+      </ul>
+      <p data-i18n="section2Body2">
+        This local data is used to preserve your settings and recent history
+        between app launches.
+      </p>
+    </section>
+
+    <section>
+      <h2 data-i18n="section3Title">3. Real-Time Network Monitoring</h2>
+      <p data-i18n="section3Body1">
+        vm-net monitors current network throughput on your Mac so it can show
+        upload and download speed in the menu bar or floating capsule.
+      </p>
+      <p data-i18n="section3Body2">
+        This monitoring happens locally on your device. In the current
+        project, it is used to display network speed and does not require you
+        to create an account.
+      </p>
+    </section>
+
+    <section>
+      <h2 data-i18n="section4Title">4. Speed Test</h2>
+      <p data-i18n="section4Body1">
+        If you choose to run a speed test, vm-net connects to Measurement Lab
+        (M-Lab) services to locate a test server and perform download and upload
+        measurements.
+      </p>
+      <ul>
+        <li data-i18n="section4Item1">The app sends requests required to locate and communicate with an M-Lab test server.</li>
+        <li data-i18n="section4Item2">The resulting speed test data may be processed by M-Lab.</li>
+        <li data-i18n="section4Item3">The current app copy explicitly warns that test data may be shared publicly through M-Lab.</li>
+      </ul>
+      <p data-i18n="section4Body2">
+        If you do not want this behavior, do not start a speed test.
+      </p>
+    </section>
+
+    <section>
+      <h2 data-i18n="section5Title">5. Network Diagnosis</h2>
+      <p data-i18n="section5Body1">
+        If you run network diagnosis, vm-net performs connectivity checks for a
+        selected target host. Based on the current project, this includes:
+      </p>
+      <ul>
+        <li data-i18n="section5Item1">Checking local network path status</li>
+        <li data-i18n="section5Item2">Resolving the selected host through DNS</li>
+        <li data-i18n="section5Item3">Sending an HTTPS request to the selected target</li>
+      </ul>
+      <p data-i18n="section5Body2">
+        These checks are used only to show diagnosis results inside the app.
+        As with any network request, the destination service and the network
+        infrastructure involved may receive your IP address and standard request
+        metadata needed to complete the connection.
+      </p>
+    </section>
+
+    <section>
+      <h2 data-i18n="section6Title">6. App Store Update Check</h2>
+      <p data-i18n="section6Body1">
+        If you use the in-app update check, vm-net sends your app bundle
+        identifier to Apple's App Store lookup service to compare the current
+        installed version with the latest App Store version.
+      </p>
+      <p data-i18n="section6Body2">
+        If a newer version is available, the app opens the App Store page for
+        vm-net.
+      </p>
+    </section>
+
+    <section>
+      <h2 data-i18n="section7Title">7. In-App Purchase for Desktop Pet</h2>
+      <p data-i18n="section7Body1">
+        vm-net offers an optional one-time unlock for the Desktop Pet feature.
+        Purchases and restore actions are handled through Apple's StoreKit and
+        App Store infrastructure.
+      </p>
+      <ul>
+        <li data-i18n="section7Item1">Apple may process transaction data, account status, and entitlement data needed to complete or restore the purchase.</li>
+        <li data-i18n="section7Item2">vm-net stores local state needed to track the trial period and reflect the unlock state inside the app.</li>
+        <li data-i18n="section7Item3">vm-net checks current entitlements through Apple to determine whether the feature is unlocked.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 data-i18n="section8Title">8. Third-Party Services</h2>
+      <p data-i18n="section8Body1">
+        Based on the current project, vm-net may interact with the following
+        external services when you use specific features:
+      </p>
+      <ul>
+        <li data-i18n="section8Item1">Measurement Lab (M-Lab) for speed testing</li>
+        <li data-i18n="section8Item2">Selected diagnosis target hosts for DNS and HTTPS connectivity checks</li>
+        <li data-i18n="section8Item3">Apple App Store services for update lookup</li>
+        <li data-i18n="section8Item4">Apple StoreKit / App Store services for purchases and restore actions</li>
+      </ul>
+      <p data-i18n="section8Body2">
+        Those services operate under their own privacy terms and policies.
+      </p>
+    </section>
+
+    <section>
+      <h2 data-i18n="section9Title">9. Data Retention and Control</h2>
+      <p data-i18n="section9Body1">
+        Local settings and recent results remain on your device until you change
+        them, reset the app's data, or remove the app and its container data.
+      </p>
+      <p data-i18n="section9Body2">
+        If you want to clear locally stored app data, you can remove the app's
+        stored preferences and container data from your Mac. Purchase records
+        handled by Apple are governed by Apple's systems and policies.
+      </p>
+    </section>
+
+    <section>
+      <h2 data-i18n="section10Title">10. Children's Privacy</h2>
+      <p data-i18n="section10Body1">
+        vm-net is a general utility app and is not designed specifically for
+        children.
+      </p>
+    </section>
+
+    <section>
+      <h2 data-i18n="section11Title">11. Changes to This Policy</h2>
+      <p data-i18n="section11Body1">
+        This policy may be updated when vm-net changes how it handles data or
+        adds new features. The latest version will be published on this page.
+      </p>
+    </section>
+
+    <section>
+      <h2 data-i18n="section12Title">12. Contact</h2>
+      <p data-i18n="section12Body1">
+        For privacy questions about vm-net, please use the project repository:
+      </p>
+      <p>
+        <a href="https://github.com/TPSHION/vm-net/issues" target="_blank" rel="noreferrer">
+          https://github.com/TPSHION/vm-net/issues
+        </a>
+      </p>
+    </section>
+  </main>
+  <script>
+    const translations = {
+      en: {
+        pageTitle: "Privacy Policy",
+        pageLead:
+          "This page explains what data vm-net handles, why it is handled, and which parts stay on your device versus being sent to external services.",
+        lastUpdated: "Last updated: April 17, 2026",
+        section1Title: "1. Summary",
+        section1Item1: "vm-net does not require account registration.",
+        section1Item2: "vm-net primarily stores preferences and recent results locally on your Mac.",
+        section1Item3: "vm-net does not include third-party advertising SDKs or analytics SDKs in the current project.",
+        section1Item4: "When you run network features, the app sends requests to the relevant external services needed to complete those features.",
+        section1Item5: "When you buy or restore the Desktop Pet unlock, Apple processes the purchase through StoreKit.",
+        section2Title: "2. Data Stored Locally on Your Device",
+        section2Body1:
+          "vm-net stores app data locally using Apple system storage such as UserDefaults. Based on the current project, local data may include:",
+        section2Item1: "App language and display preferences",
+        section2Item2: "Floating capsule visibility, colors, transparency, and last position",
+        section2Item3: "Desktop Pet settings, selected pet, and roaming behavior",
+        section2Item4: "Recent speed test results",
+        section2Item5: "Recent network diagnosis results and selected diagnosis target",
+        section2Item6: "Desktop Pet trial start time and local unlock state cache",
+        section2Body2: "This local data is used to preserve your settings and recent history between app launches.",
+        section3Title: "3. Real-Time Network Monitoring",
+        section3Body1:
+          "vm-net monitors current network throughput on your Mac so it can show upload and download speed in the menu bar or floating capsule.",
+        section3Body2:
+          "This monitoring happens locally on your device. In the current project, it is used to display network speed and does not require you to create an account.",
+        section4Title: "4. Speed Test",
+        section4Body1:
+          "If you choose to run a speed test, vm-net connects to Measurement Lab (M-Lab) services to locate a test server and perform download and upload measurements.",
+        section4Item1: "The app sends requests required to locate and communicate with an M-Lab test server.",
+        section4Item2: "The resulting speed test data may be processed by M-Lab.",
+        section4Item3: "The current app copy explicitly warns that test data may be shared publicly through M-Lab.",
+        section4Body2: "If you do not want this behavior, do not start a speed test.",
+        section5Title: "5. Network Diagnosis",
+        section5Body1:
+          "If you run network diagnosis, vm-net performs connectivity checks for a selected target host. Based on the current project, this includes:",
+        section5Item1: "Checking local network path status",
+        section5Item2: "Resolving the selected host through DNS",
+        section5Item3: "Sending an HTTPS request to the selected target",
+        section5Body2:
+          "These checks are used only to show diagnosis results inside the app. As with any network request, the destination service and the network infrastructure involved may receive your IP address and standard request metadata needed to complete the connection.",
+        section6Title: "6. App Store Update Check",
+        section6Body1:
+          "If you use the in-app update check, vm-net sends your app bundle identifier to Apple's App Store lookup service to compare the current installed version with the latest App Store version.",
+        section6Body2: "If a newer version is available, the app opens the App Store page for vm-net.",
+        section7Title: "7. In-App Purchase for Desktop Pet",
+        section7Body1:
+          "vm-net offers an optional one-time unlock for the Desktop Pet feature. Purchases and restore actions are handled through Apple's StoreKit and App Store infrastructure.",
+        section7Item1: "Apple may process transaction data, account status, and entitlement data needed to complete or restore the purchase.",
+        section7Item2: "vm-net stores local state needed to track the trial period and reflect the unlock state inside the app.",
+        section7Item3: "vm-net checks current entitlements through Apple to determine whether the feature is unlocked.",
+        section8Title: "8. Third-Party Services",
+        section8Body1:
+          "Based on the current project, vm-net may interact with the following external services when you use specific features:",
+        section8Item1: "Measurement Lab (M-Lab) for speed testing",
+        section8Item2: "Selected diagnosis target hosts for DNS and HTTPS connectivity checks",
+        section8Item3: "Apple App Store services for update lookup",
+        section8Item4: "Apple StoreKit / App Store services for purchases and restore actions",
+        section8Body2: "Those services operate under their own privacy terms and policies.",
+        section9Title: "9. Data Retention and Control",
+        section9Body1:
+          "Local settings and recent results remain on your device until you change them, reset the app's data, or remove the app and its container data.",
+        section9Body2:
+          "If you want to clear locally stored app data, you can remove the app's stored preferences and container data from your Mac. Purchase records handled by Apple are governed by Apple's systems and policies.",
+        section10Title: "10. Children's Privacy",
+        section10Body1: "vm-net is a general utility app and is not designed specifically for children.",
+        section11Title: "11. Changes to This Policy",
+        section11Body1:
+          "This policy may be updated when vm-net changes how it handles data or adds new features. The latest version will be published on this page.",
+        section12Title: "12. Contact",
+        section12Body1: "For privacy questions about vm-net, please use the project repository:"
+      },
+      zh: {
+        pageTitle: "隐私政策",
+        pageLead:
+          "本页面说明 vm-net 会处理哪些数据、处理这些数据的原因，以及哪些数据仅保留在你的设备上，哪些数据会发送到外部服务。",
+        lastUpdated: "最后更新：2026 年 4 月 17 日",
+        section1Title: "1. 概要",
+        section1Item1: "vm-net 不要求你注册账号。",
+        section1Item2: "vm-net 主要在你的 Mac 本地存储偏好设置和最近结果。",
+        section1Item3: "按照当前项目实现，vm-net 未集成第三方广告 SDK 或分析 SDK。",
+        section1Item4: "当你使用联网功能时，应用会向完成该功能所需的外部服务发送请求。",
+        section1Item5: "当你购买或恢复桌面宠物解锁时，Apple 会通过 StoreKit 处理付款。",
+        section2Title: "2. 存储在你设备本地的数据",
+        section2Body1:
+          "vm-net 通过 Apple 系统存储机制（例如 UserDefaults）在本地保存应用数据。按照当前项目实现，本地数据可能包括：",
+        section2Item1: "应用语言和展示偏好",
+        section2Item2: "悬浮胶囊的显示状态、颜色、透明度和最后位置",
+        section2Item3: "桌面宠物设置、所选宠物形象和漫游行为",
+        section2Item4: "最近的测速结果",
+        section2Item5: "最近的网络诊断结果和已选择的诊断目标",
+        section2Item6: "桌面宠物试用开始时间和本地解锁状态缓存",
+        section2Body2: "这些本地数据用于在应用重启后保留你的设置和最近使用记录。",
+        section3Title: "3. 实时网络监控",
+        section3Body1:
+          "vm-net 会监控你 Mac 当前的网络吞吐，以便在菜单栏或悬浮胶囊中显示上传和下载速率。",
+        section3Body2:
+          "这项监控在你的设备本地完成。按照当前项目实现，它仅用于显示网速，不要求你创建账号。",
+        section4Title: "4. 测速功能",
+        section4Body1:
+          "如果你主动发起测速，vm-net 会连接 Measurement Lab（M-Lab）服务，定位测试服务器并执行下载、上传测量。",
+        section4Item1: "应用会发送定位和连接 M-Lab 测试服务器所需的请求。",
+        section4Item2: "测速结果数据可能会由 M-Lab 处理。",
+        section4Item3: "应用当前文案已明确提示，测速数据可能会通过 M-Lab 公开分享。",
+        section4Body2: "如果你不希望发生这类行为，请不要发起测速。",
+        section5Title: "5. 网络诊断",
+        section5Body1:
+          "如果你运行网络诊断，vm-net 会针对所选目标主机执行连通性检查。按照当前项目实现，这包括：",
+        section5Item1: "检查本地网络路径状态",
+        section5Item2: "通过 DNS 解析所选主机",
+        section5Item3: "向所选目标发送 HTTPS 请求",
+        section5Body2:
+          "这些检查仅用于在应用内展示诊断结果。与任何网络请求一样，目标服务以及经过的网络基础设施可能会接收到完成连接所需的 IP 地址和标准请求元数据。",
+        section6Title: "6. App Store 更新检查",
+        section6Body1:
+          "如果你使用应用内的检查更新功能，vm-net 会将应用的 bundle identifier 发送给 Apple 的 App Store 查询服务，用于比较当前安装版本和 App Store 最新版本。",
+        section6Body2: "如果存在新版本，应用会打开 vm-net 的 App Store 页面。",
+        section7Title: "7. 桌面宠物应用内购买",
+        section7Body1:
+          "vm-net 提供可选的一次性桌面宠物解锁。购买和恢复操作通过 Apple 的 StoreKit 和 App Store 基础设施完成。",
+        section7Item1: "Apple 可能会处理完成购买或恢复所需的交易数据、账号状态和权益信息。",
+        section7Item2: "vm-net 会在本地存储跟踪试用期和反映解锁状态所需的数据。",
+        section7Item3: "vm-net 会通过 Apple 检查当前权益状态，以判断该功能是否已解锁。",
+        section8Title: "8. 第三方服务",
+        section8Body1:
+          "按照当前项目实现，vm-net 在你使用特定功能时可能会与以下外部服务交互：",
+        section8Item1: "用于测速的 Measurement Lab（M-Lab）",
+        section8Item2: "用于 DNS 和 HTTPS 连通性检查的所选诊断目标主机",
+        section8Item3: "用于更新查询的 Apple App Store 服务",
+        section8Item4: "用于购买和恢复的 Apple StoreKit / App Store 服务",
+        section8Body2: "这些服务遵循其各自的隐私条款和政策。",
+        section9Title: "9. 数据保留与控制",
+        section9Body1:
+          "本地设置和最近结果会保留在你的设备上，直到你修改它们、重置应用数据，或删除应用及其容器数据。",
+        section9Body2:
+          "如果你希望清除本地存储的应用数据，可以从你的 Mac 中移除应用保存的偏好和容器数据。由 Apple 处理的购买记录受 Apple 系统和政策约束。",
+        section10Title: "10. 儿童隐私",
+        section10Body1: "vm-net 是一款通用工具应用，并非专门面向儿童设计。",
+        section11Title: "11. 本政策的变更",
+        section11Body1:
+          "当 vm-net 的数据处理方式发生变化或新增功能时，本政策可能会更新。最新版本会发布在本页面。",
+        section12Title: "12. 联系方式",
+        section12Body1: "如果你对 vm-net 的隐私问题有疑问，请通过项目仓库联系："
+      }
+    };
+
+    function applyLanguage(lang) {
+      const activeLang = translations[lang] ? lang : "en";
+      document.documentElement.lang = activeLang === "zh" ? "zh-CN" : "en";
+      document.title = activeLang === "zh" ? "vm-net 隐私政策" : "vm-net Privacy Policy";
+
+      document.querySelectorAll("[data-i18n]").forEach((node) => {
+        const key = node.getAttribute("data-i18n");
+        const value = translations[activeLang][key];
+        if (typeof value === "string") {
+          node.textContent = value;
+        }
+      });
+
+      document
+        .querySelectorAll("[data-lang-button]")
+        .forEach((button) => {
+          button.classList.toggle(
+            "active",
+            button.getAttribute("data-lang-button") === activeLang
+          );
+        });
+    }
+
+    const initialLang = navigator.language.toLowerCase().startsWith("zh")
+      ? "zh"
+      : "en";
+
+    document
+      .querySelectorAll("[data-lang-button]")
+      .forEach((button) => {
+        button.addEventListener("click", () => {
+          applyLanguage(button.getAttribute("data-lang-button"));
+        });
+      });
+
+    applyLanguage(initialLang);
+  </script>
+</body>
+</html>
