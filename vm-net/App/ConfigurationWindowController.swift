@@ -18,6 +18,7 @@ final class ConfigurationWindowController: NSWindowController {
 
     init(
         preferences: AppPreferences,
+        desktopPetAccessStore: DesktopPetAccessStore,
         launchAtLoginManager: LaunchAtLoginManager,
         speedTestStore: SpeedTestStore,
         diagnosisStore: NetworkDiagnosisStore,
@@ -28,6 +29,7 @@ final class ConfigurationWindowController: NSWindowController {
     ) {
         let rootView = ConfigurationView(
             preferences: preferences,
+            desktopPetAccessStore: desktopPetAccessStore,
             launchAtLoginManager: launchAtLoginManager,
             speedTestStore: speedTestStore,
             diagnosisStore: diagnosisStore,

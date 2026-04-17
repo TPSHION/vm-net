@@ -18,6 +18,7 @@ struct ConfigurationView: View {
     }
 
     @ObservedObject var preferences: AppPreferences
+    @ObservedObject var desktopPetAccessStore: DesktopPetAccessStore
     @ObservedObject var launchAtLoginManager: LaunchAtLoginManager
     @ObservedObject var speedTestStore: SpeedTestStore
     @ObservedObject var diagnosisStore: NetworkDiagnosisStore
@@ -79,6 +80,7 @@ struct ConfigurationView: View {
     private var desktopPetPage: some View {
         DesktopPetSettingsPageView(
             preferences: preferences,
+            desktopPetAccessStore: desktopPetAccessStore,
             onBack: {
                 page = .settings
             },
@@ -182,7 +184,7 @@ struct ConfigurationView: View {
                 }
                 .toggleStyle(.switch)
 
-                desktopPetEntryButton
+                desktopPetPremiumCard
 
                 if preferences.showDesktopPet && !preferences.showInFloatingBall {
                     Text(L10n.tr("desktopPet.requiresFloatingBall"))
@@ -320,10 +322,44 @@ struct ConfigurationView: View {
         Binding(
             get: { preferences.showDesktopPet },
             set: { newValue in
+                guard newValue else {
+                    preferences.showDesktopPet = false
+                    onDesktopPetToggle(false)
+                    return
+                }
+
+                guard desktopPetAccessStore.prepareForUse() else {
+                    preferences.showDesktopPet = false
+                    page = .desktopPet
+                    return
+                }
+
                 preferences.showDesktopPet = newValue
                 onDesktopPetToggle(newValue)
             }
         )
+    }
+
+    private var desktopPetAccessSummary: String {
+        switch desktopPetAccessStore.status {
+        case .loading:
+            return L10n.tr("desktopPet.access.loading")
+        case .eligibleForTrial:
+            return L10n.tr("desktopPet.access.settings.eligible")
+        case .inTrial(let daysRemaining, let expiresAt):
+            return L10n.tr(
+                "desktopPet.access.settings.trial",
+                daysRemaining,
+                DesktopPetAccessFormatter.expirationString(expiresAt)
+            )
+        case .unlocked:
+            return L10n.tr("desktopPet.access.settings.unlocked")
+        case .expired(let expiresAt):
+            return L10n.tr(
+                "desktopPet.access.settings.expired",
+                DesktopPetAccessFormatter.expirationString(expiresAt)
+            )
+        }
     }
 
     private var floatingBallTextColorBinding: Binding<Color> {
@@ -522,6 +558,116 @@ struct ConfigurationView: View {
         ) {
             page = .diagnosis
         }
+    }
+
+    private var desktopPetPremiumCard: some View {
+        Button {
+            page = .desktopPet
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            Text(L10n.tr("desktopPet.access.badge"))
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 5)
+                                .background(
+                                    Capsule(style: .continuous)
+                                        .fill(
+                                            LinearGradient(
+                                                colors: desktopPetAccentColors,
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            )
+                                        )
+                                )
+
+                            Text(L10n.tr("desktopPet.access.marketingCaption"))
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Text(desktopPetAccessSummary)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                }
+
+                ScrollView(.horizontal) {
+                    HStack(spacing: 8) {
+                        desktopPetHighlightChip(L10n.tr("desktopPet.access.highlight.trial"))
+                        desktopPetHighlightChip(L10n.tr("desktopPet.access.highlight.unlock"))
+                        desktopPetHighlightChip(L10n.tr("desktopPet.access.highlight.restore"))
+                    }
+                    .padding(.vertical, 1)
+                }
+                .scrollIndicators(.hidden)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(desktopPetPremiumBackground)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func desktopPetHighlightChip(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(Color.white.opacity(0.52))
+            )
+    }
+
+    private var desktopPetAccentColors: [Color] {
+        switch desktopPetAccessStore.status {
+        case .unlocked:
+            return [Color(red: 0.83, green: 0.64, blue: 0.23), Color(red: 0.58, green: 0.47, blue: 0.20)]
+        case .expired:
+            return [Color(red: 0.82, green: 0.47, blue: 0.23), Color(red: 0.60, green: 0.31, blue: 0.18)]
+        case .loading, .eligibleForTrial, .inTrial:
+            return [Color(red: 0.94, green: 0.72, blue: 0.26), Color(red: 0.82, green: 0.54, blue: 0.20)]
+        }
+    }
+
+    private var desktopPetPremiumBackground: some View {
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [
+                        desktopPetAccentColors[0].opacity(0.22),
+                        Color(nsColor: .controlBackgroundColor).opacity(0.95),
+                        desktopPetAccentColors[1].opacity(0.12),
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.72),
+                                desktopPetAccentColors[0].opacity(0.35),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
     }
 
     private func featureEntryButton(

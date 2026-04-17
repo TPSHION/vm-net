@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private let preferences = AppPreferences()
     private let launchAtLoginManager = LaunchAtLoginManager()
+    private let desktopPetAccessStore = DesktopPetAccessStore()
     private let throughputStore = ThroughputStore()
     private let speedTestStore = SpeedTestStore()
     private let diagnosisStore = NetworkDiagnosisStore()
@@ -22,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var petWorldController: PetWorldController?
     private lazy var configurationWindowController = ConfigurationWindowController(
         preferences: preferences,
+        desktopPetAccessStore: desktopPetAccessStore,
         launchAtLoginManager: launchAtLoginManager,
         speedTestStore: speedTestStore,
         diagnosisStore: diagnosisStore,
@@ -43,6 +45,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         bindPreferences()
         ensureStatusItemController()
         refreshLocalization()
+        Task { [weak self] in
+            await self?.desktopPetAccessStore.prepare()
+            self?.synchronizeDesktopPetAccess()
+        }
         if preferences.showInFloatingBall {
             ensureFloatingBallController()
         }
@@ -71,6 +77,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func showMainWindow() {
         launchAtLoginManager.refresh()
         refreshLocalization()
+        Task { [weak self] in
+            await self?.desktopPetAccessStore.prepare()
+            self?.synchronizeDesktopPetAccess()
+        }
         configurationWindowController.present()
     }
 
@@ -85,6 +95,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func setDesktopPetEnabled(_ isEnabled: Bool) {
+        guard !isEnabled || desktopPetAccessStore.prepareForUse() else {
+            preferences.showDesktopPet = false
+            petWorldController?.hide()
+            return
+        }
+
         if isEnabled {
             refreshDesktopPetVisibility()
         } else {
@@ -146,7 +162,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func refreshDesktopPetVisibility() {
-        guard preferences.showDesktopPet, preferences.showInFloatingBall else {
+        guard
+            desktopPetAccessStore.status.hasAccess,
+            preferences.showDesktopPet,
+            preferences.showInFloatingBall
+        else {
             petWorldController?.hide()
             return
         }
@@ -184,7 +204,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         anchorFrame: CGRect,
         screen: NSScreen?
     ) {
-        guard preferences.showDesktopPet, preferences.showInFloatingBall else {
+        guard
+            desktopPetAccessStore.status.hasAccess,
+            preferences.showDesktopPet,
+            preferences.showInFloatingBall
+        else {
             petWorldController?.hide()
             return
         }
@@ -225,10 +249,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.diagnosisStore.reloadLocalization()
             }
             .store(in: &cancellables)
+
+        desktopPetAccessStore.$status
+            .dropFirst()
+            .sink { [weak self] _ in
+                self?.synchronizeDesktopPetAccess()
+            }
+            .store(in: &cancellables)
     }
 
     private func refreshLocalization() {
         speedTestStore.reloadLocalization()
         diagnosisStore.reloadLocalization()
+    }
+
+    private func synchronizeDesktopPetAccess() {
+        guard desktopPetAccessStore.status.hasAccess else {
+            if preferences.showDesktopPet {
+                preferences.showDesktopPet = false
+            }
+            petWorldController?.hide()
+            return
+        }
+
+        refreshDesktopPetVisibility()
     }
 }

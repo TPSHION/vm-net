@@ -11,6 +11,7 @@ import SwiftUI
 struct DesktopPetSettingsPageView: View {
 
     @ObservedObject var preferences: AppPreferences
+    @ObservedObject var desktopPetAccessStore: DesktopPetAccessStore
     let onBack: () -> Void
     let onDesktopPetToggle: (Bool) -> Void
     let onDesktopPetRoamingToggle: (Bool) -> Void
@@ -19,12 +20,14 @@ struct DesktopPetSettingsPageView: View {
 
     init(
         preferences: AppPreferences,
+        desktopPetAccessStore: DesktopPetAccessStore,
         onBack: @escaping () -> Void,
         onDesktopPetToggle: @escaping (Bool) -> Void,
         onDesktopPetRoamingToggle: @escaping (Bool) -> Void,
         onDesktopPetAssetApply: @escaping (DesktopPetAssetID) -> Void
     ) {
         self.preferences = preferences
+        self.desktopPetAccessStore = desktopPetAccessStore
         self.onBack = onBack
         self.onDesktopPetToggle = onDesktopPetToggle
         self.onDesktopPetRoamingToggle = onDesktopPetRoamingToggle
@@ -48,6 +51,9 @@ struct DesktopPetSettingsPageView: View {
             guard !hasPendingPetSelection else { return }
             previewAssetID = newValue
         }
+        .task {
+            await desktopPetAccessStore.prepare()
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
@@ -70,6 +76,10 @@ struct DesktopPetSettingsPageView: View {
     private var previewSection: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
+                accessSection
+
+                Divider()
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(L10n.tr("desktopPet.preview.currentTitle"))
                         .font(.system(size: 13, weight: .medium))
@@ -186,8 +196,6 @@ struct DesktopPetSettingsPageView: View {
             }
             .padding(8)
             .frame(maxWidth: .infinity, alignment: .leading)
-        } label: {
-            Text(L10n.tr("desktopPet.preview.sectionTitle"))
         }
     }
 
@@ -195,8 +203,19 @@ struct DesktopPetSettingsPageView: View {
         Binding(
             get: { preferences.showDesktopPet },
             set: {
-                preferences.showDesktopPet = $0
-                onDesktopPetToggle($0)
+                guard $0 else {
+                    preferences.showDesktopPet = false
+                    onDesktopPetToggle(false)
+                    return
+                }
+
+                guard desktopPetAccessStore.prepareForUse() else {
+                    preferences.showDesktopPet = false
+                    return
+                }
+
+                preferences.showDesktopPet = true
+                onDesktopPetToggle(true)
             }
         )
     }
@@ -221,6 +240,270 @@ struct DesktopPetSettingsPageView: View {
 
     private var previewAssetIndex: Int {
         runtimeReadyAssets.firstIndex(where: { $0.id == previewAssetID }) ?? 0
+    }
+
+    private var accessSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .center, spacing: 8) {
+                        premiumBadge
+                        Text(L10n.tr("desktopPet.access.marketingCaption"))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+
+                        Spacer(minLength: 0)
+
+                        accessStatusBadge
+                    }
+
+                    if let accessDescription {
+                        Text(accessDescription)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            if let accessTimelineSummary {
+                HStack(spacing: 8) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(accessAccentColors[0])
+
+                    Text(accessTimelineSummary)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.primary)
+
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.white.opacity(0.52))
+                )
+            }
+
+            scrollableHighlights
+
+            if let lastAccessMessage = desktopPetAccessStore.lastAccessMessage {
+                Text(lastAccessMessage)
+                    .font(.system(size: 12))
+                    .foregroundStyle(accessMessageColor)
+            }
+
+            if desktopPetAccessStore.isPurchaseInProgress {
+                ProgressView()
+                    .controlSize(.small)
+            } else if desktopPetAccessStore.status != .unlocked {
+                ViewThatFits(in: .horizontal) {
+                    accessActionsRow
+                    accessActionsColumn
+                }
+            }
+        }
+        .padding(16)
+        .background(accessCardBackground)
+    }
+
+    private var accessTitle: String {
+        switch desktopPetAccessStore.status {
+        case .loading:
+            return L10n.tr("desktopPet.access.loading")
+        case .eligibleForTrial:
+            return L10n.tr("desktopPet.access.eligible.title")
+        case .inTrial:
+            return L10n.tr("desktopPet.access.trial.title")
+        case .unlocked:
+            return L10n.tr("desktopPet.access.unlocked.title")
+        case .expired:
+            return L10n.tr("desktopPet.access.expired.title")
+        }
+    }
+
+    private var accessDescription: String? {
+        switch desktopPetAccessStore.status {
+        case .loading:
+            return L10n.tr("desktopPet.access.loadingDescription")
+        case .eligibleForTrial:
+            return L10n.tr("desktopPet.access.eligible.description")
+        case .inTrial:
+            return nil
+        case .unlocked:
+            return L10n.tr("desktopPet.access.unlocked.description")
+        case .expired:
+            return L10n.tr("desktopPet.access.expired.description")
+        }
+    }
+
+    private var accessAccentColors: [Color] {
+        switch desktopPetAccessStore.status {
+        case .unlocked:
+            return [Color(red: 0.83, green: 0.64, blue: 0.23), Color(red: 0.58, green: 0.47, blue: 0.20)]
+        case .expired:
+            return [Color(red: 0.82, green: 0.47, blue: 0.23), Color(red: 0.60, green: 0.31, blue: 0.18)]
+        case .loading, .eligibleForTrial, .inTrial:
+            return [Color(red: 0.94, green: 0.72, blue: 0.26), Color(red: 0.82, green: 0.54, blue: 0.20)]
+        }
+    }
+
+    private var accessCardBackground: some View {
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [
+                        accessAccentColors[0].opacity(0.22),
+                        Color(nsColor: .controlBackgroundColor).opacity(0.95),
+                        accessAccentColors[1].opacity(0.12),
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.75),
+                                accessAccentColors[0].opacity(0.35),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
+    }
+
+    private var premiumBadge: some View {
+        Text(L10n.tr("desktopPet.access.badge"))
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: accessAccentColors,
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+            )
+    }
+
+    private var accessStatusBadge: some View {
+        Text(accessTitle)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(accessAccentColors[1])
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(Color.white.opacity(0.74))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(accessAccentColors[0].opacity(0.3), lineWidth: 1)
+            )
+    }
+
+    private var accessHighlights: [String] {
+        [
+            L10n.tr("desktopPet.access.highlight.trial"),
+            L10n.tr("desktopPet.access.highlight.unlock"),
+            L10n.tr("desktopPet.access.highlight.restore"),
+        ]
+    }
+
+    private var scrollableHighlights: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 8) {
+                ForEach(accessHighlights, id: \.self) { highlight in
+                    Text(highlight)
+                        .font(.system(size: 11, weight: .medium))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color.white.opacity(0.52))
+                        )
+                }
+            }
+            .padding(.vertical, 1)
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    private var accessTimelineSummary: String? {
+        switch desktopPetAccessStore.status {
+        case .inTrial(_, let expiresAt):
+            return L10n.tr(
+                "desktopPet.access.timeline.trial",
+                DesktopPetAccessFormatter.expirationString(expiresAt)
+            )
+        case .expired(let expiresAt):
+            return L10n.tr(
+                "desktopPet.access.timeline.expired",
+                DesktopPetAccessFormatter.expirationString(expiresAt)
+            )
+        case .eligibleForTrial, .loading, .unlocked:
+            return nil
+        }
+    }
+
+    private var accessActionsRow: some View {
+        HStack(spacing: 10) {
+            FirstMouseButton(L10n.tr("desktopPet.access.restore")) {
+                Task {
+                    await desktopPetAccessStore.restorePurchases()
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            FirstMouseButton(
+                desktopPetAccessStore.unlockButtonTitle,
+                isProminent: true
+            ) {
+                Task {
+                    await desktopPetAccessStore.purchaseLifetimeUnlock()
+                }
+            }
+        }
+    }
+
+    private var accessActionsColumn: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            FirstMouseButton(
+                desktopPetAccessStore.unlockButtonTitle,
+                isProminent: true
+            ) {
+                Task {
+                    await desktopPetAccessStore.purchaseLifetimeUnlock()
+                }
+            }
+
+            FirstMouseButton(L10n.tr("desktopPet.access.restore")) {
+                Task {
+                    await desktopPetAccessStore.restorePurchases()
+                }
+            }
+        }
+    }
+
+    private var accessMessageColor: Color {
+        switch desktopPetAccessStore.lastAccessMessageKind {
+        case .neutral:
+            return .secondary
+        case .success:
+            return Color(nsColor: .systemGreen)
+        case .error:
+            return Color(nsColor: .systemRed)
+        }
     }
 
     private var previewIndexLabel: String {
