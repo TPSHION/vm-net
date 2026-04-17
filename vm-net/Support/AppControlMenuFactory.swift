@@ -14,6 +14,20 @@ enum AppControlMenuFactory {
         openSelector: Selector
     ) -> NSMenu {
         let menu = NSMenu()
+        populateMenu(
+            menu,
+            target: target,
+            openSelector: openSelector
+        )
+        return menu
+    }
+
+    static func populateMenu(
+        _ menu: NSMenu,
+        target: AnyObject,
+        openSelector: Selector
+    ) {
+        menu.removeAllItems()
 
         let openWindowItem = NSMenuItem(
             title: L10n.tr("menu.openWindow"),
@@ -31,7 +45,5 @@ enum AppControlMenuFactory {
         )
         quitItem.target = NSApp
         menu.addItem(quitItem)
-
-        return menu
     }
 }

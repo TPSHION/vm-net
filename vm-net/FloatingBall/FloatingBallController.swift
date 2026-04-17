@@ -9,7 +9,7 @@ import AppKit
 import Combine
 
 @MainActor
-final class FloatingBallController: NSWindowController, NSWindowDelegate {
+final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenuDelegate {
 
     private enum Layout {
         static let panelSize = NSSize(width: 88, height: 46)
@@ -109,10 +109,12 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate {
 
         contentView.frame = hostingView.bounds
         contentView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.menu = AppControlMenuFactory.makeMenu(
+        let menu = AppControlMenuFactory.makeMenu(
             target: self,
             openSelector: #selector(handleOpenWindow)
         )
+        menu.delegate = self
+        contentView.menu = menu
         hostingView.addSubview(contentView)
 
         NSLayoutConstraint.activate([
@@ -172,8 +174,18 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate {
         openWindowHandler?()
     }
 
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        AppControlMenuFactory.populateMenu(
+            menu,
+            target: self,
+            openSelector: #selector(handleOpenWindow)
+        )
+    }
+
     private func refreshMenuLocalization() {
-        contentView.menu = AppControlMenuFactory.makeMenu(
+        guard let menu = contentView.menu else { return }
+        AppControlMenuFactory.populateMenu(
+            menu,
             target: self,
             openSelector: #selector(handleOpenWindow)
         )

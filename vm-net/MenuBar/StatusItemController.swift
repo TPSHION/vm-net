@@ -9,7 +9,7 @@ import AppKit
 import Combine
 
 @MainActor
-final class StatusItemController {
+final class StatusItemController: NSObject, NSMenuDelegate {
 
     private enum Layout {
         static let statusItemWidth: CGFloat = 68
@@ -34,6 +34,8 @@ final class StatusItemController {
         self.store = store
         self.preferences = preferences
 
+        super.init()
+
         configureMenu()
         configureButton()
         bind()
@@ -41,10 +43,19 @@ final class StatusItemController {
     }
 
     private func configureMenu() {
-        statusItem.menu = AppControlMenuFactory.makeMenu(
+        let menu =
+            statusItem.menu
+            ?? AppControlMenuFactory.makeMenu(
+                target: self,
+                openSelector: #selector(handleOpenWindow)
+            )
+        AppControlMenuFactory.populateMenu(
+            menu,
             target: self,
             openSelector: #selector(handleOpenWindow)
         )
+        menu.delegate = self
+        statusItem.menu = menu
     }
 
     private func configureButton() {
@@ -79,6 +90,14 @@ final class StatusItemController {
                 }
             }
             .store(in: &cancellables)
+    }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        AppControlMenuFactory.populateMenu(
+            menu,
+            target: self,
+            openSelector: #selector(handleOpenWindow)
+        )
     }
 
     private func render(_ snapshot: NetworkMonitorSnapshot) {
