@@ -245,9 +245,9 @@ final class AppPreferences: ObservableObject {
         self.defaults = defaults
 
         let storedShowInFloatingBall =
-            defaults.object(forKey: Keys.showInFloatingBall) as? Bool ?? false
+            defaults.object(forKey: Keys.showInFloatingBall) as? Bool ?? true
         let storedShowDesktopPet =
-            defaults.object(forKey: Keys.showDesktopPet) as? Bool ?? false
+            defaults.object(forKey: Keys.showDesktopPet) as? Bool ?? true
         let storedDesktopPetAllowsRoaming =
             defaults.object(forKey: Keys.desktopPetAllowsRoaming) as? Bool ?? true
 

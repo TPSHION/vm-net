@@ -55,6 +55,7 @@ final class DesktopPetAccessStore: ObservableObject {
 
     private let defaults: UserDefaults
     private var transactionUpdatesTask: Task<Void, Never>?
+    private var expirationRefreshTask: Task<Void, Never>?
     private var trialStartedAt: Date? {
         didSet {
             if let trialStartedAt {
@@ -112,10 +113,13 @@ final class DesktopPetAccessStore: ObservableObject {
                 await self.handle(transactionResult: result)
             }
         }
+
+        scheduleExpirationRefresh()
     }
 
     deinit {
         transactionUpdatesTask?.cancel()
+        expirationRefreshTask?.cancel()
     }
 
     func prepare() async {
@@ -285,6 +289,36 @@ final class DesktopPetAccessStore: ObservableObject {
             hasLifetimeUnlock: hasLifetimeUnlock,
             now: now
         )
+        scheduleExpirationRefresh()
+    }
+
+    private func scheduleExpirationRefresh() {
+        expirationRefreshTask?.cancel()
+
+        guard case .inTrial(_, let expiresAt) = status else {
+            expirationRefreshTask = nil
+            return
+        }
+
+        let delay = expiresAt.timeIntervalSinceNow
+        guard delay > 0 else {
+            updateStatus(now: Date())
+            return
+        }
+
+        expirationRefreshTask = Task { [weak self] in
+            let nanoseconds = UInt64(delay * 1_000_000_000)
+
+            do {
+                try await Task.sleep(nanoseconds: nanoseconds)
+            } catch {
+                return
+            }
+
+            await MainActor.run {
+                self?.updateStatus(now: Date())
+            }
+        }
     }
 
     private func checkVerified<T>(
