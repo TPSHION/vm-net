@@ -185,7 +185,7 @@ struct DesktopPetAsset {
 }
 
 enum DesktopPetCatalog {
-    static let defaultAssetID: DesktopPetAssetID = .blobbyCat
+    static let defaultAssetID: DesktopPetAssetID = .catPlayingAnimation
 
     static func asset(for id: DesktopPetAssetID) -> DesktopPetAsset {
         switch id {
@@ -242,7 +242,7 @@ enum DesktopPetCatalog {
 
 enum PetDefinitionCatalog {
 
-    static var defaultDefinitionID: PetDefinitionID { .blobbyCat }
+    static var defaultDefinitionID: PetDefinitionID { .catPlayingAnimation }
 
     static var runtimeDefinitions: [PetDefinition] {
         [
