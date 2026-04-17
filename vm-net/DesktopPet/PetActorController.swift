@@ -36,6 +36,7 @@ final class PetActorController {
     private var movementStartDate: Date?
     private var hasInitializedPlan = false
     private var isRoamingEnabled = true
+    private var isManualDragActive = false
 
     init(
         asset: DesktopPetAsset,
@@ -204,7 +205,7 @@ final class PetActorController {
 
     private func tick() {
         guard hasInitializedPlan, movementBounds != .zero else { return }
-        guard !renderer.hasActiveInteraction else { return }
+        guard !renderer.hasActiveInteraction, !isManualDragActive else { return }
 
         if state.isMoving {
             if let movementStartDate, Date() < movementStartDate {
@@ -319,6 +320,62 @@ final class PetActorController {
             parentView.addSubview(renderer.view)
         }
         viewDidChange?(renderer.view)
+    }
+
+    func beginManualDrag() {
+        guard !isManualDragActive else { return }
+
+        isManualDragActive = true
+        movementStartDate = nil
+        stateDeadline = nil
+        currentSpeed = 0
+
+        if state.isMoving {
+            state = .idle
+            renderer.applyBehaviorState(.idle, movementVector: nil)
+        }
+    }
+
+    func updateDraggedOrigin(_ origin: CGPoint) {
+        let clamped = clampedOrigin(origin)
+
+        currentOrigin = clamped
+        destinationOrigin = clamped
+        currentSpeed = 0
+
+        if state.isMoving {
+            state = .idle
+            renderer.applyBehaviorState(.idle, movementVector: nil)
+        }
+
+        syncFrame()
+    }
+
+    func endManualDrag() {
+        guard isManualDragActive else { return }
+
+        isManualDragActive = false
+
+        guard hasInitializedPlan, movementBounds != .zero else { return }
+
+        if !isRoamingEnabled {
+            let plan = behaviorEngine.roamingDisabledPlan(
+                currentOrigin: currentOrigin,
+                movementBounds: movementBounds,
+                homeOrigin: homeOrigin
+            )
+            apply(plan)
+            return
+        }
+
+        state = .idle
+        destinationOrigin = currentOrigin
+        currentSpeed = 0
+        stateDeadline = Date().addingTimeInterval(
+            TimeInterval.random(in: asset.behavior.idleDuration)
+        )
+        renderer.applyBehaviorState(.idle, movementVector: nil)
+        syncFrame()
     }
 
     private func clampedOrigin(_ origin: CGPoint) -> CGPoint {

@@ -11,7 +11,6 @@ import AppKit
 final class PetOverlayController: NSWindowController {
 
     private enum Input {
-        static let floatingBallProtectionPadding: CGFloat = 10
     }
 
     private let rootView = PetOverlayPassthroughView()
@@ -20,6 +19,7 @@ final class PetOverlayController: NSWindowController {
     private var isRoamingEnabled: Bool
     private weak var currentScreen: NSScreen?
     private var currentHomeAnchor: PetHomeAnchor?
+    var relativeHomeOffsetDidChange: ((DesktopPetAssetID, CGPoint) -> Void)?
 
     init(
         asset: DesktopPetAsset,
@@ -52,6 +52,16 @@ final class PetOverlayController: NSWindowController {
             self?.rootView.actorView = view
         }
         rootView.actorView = actorController.view
+        rootView.dragCaptureRect = dragCaptureRect(for: asset)
+        rootView.dragDidBegin = { [weak self] in
+            self?.actorController.beginManualDrag()
+        }
+        rootView.dragDidMove = { [weak self] origin in
+            self?.actorController.updateDraggedOrigin(origin)
+        }
+        rootView.dragDidEnd = { [weak self] origin in
+            self?.completeManualDrag(at: origin)
+        }
     }
 
     @available(*, unavailable)
@@ -63,6 +73,7 @@ final class PetOverlayController: NSWindowController {
         self.asset = asset
         actorController.applyAsset(asset)
         rootView.frame = CGRect(origin: .zero, size: asset.layout.panelSize)
+        rootView.dragCaptureRect = dragCaptureRect(for: asset)
         window?.setContentSize(asset.layout.panelSize)
         if let currentScreen {
             actorController.updateEnvironment(
@@ -84,6 +95,7 @@ final class PetOverlayController: NSWindowController {
         guard let window else { return }
 
         rootView.frame = CGRect(origin: .zero, size: asset.layout.panelSize)
+        rootView.dragCaptureRect = dragCaptureRect(for: asset)
         window.setContentSize(asset.layout.panelSize)
 
         actorController.updateEnvironment(
@@ -144,17 +156,75 @@ final class PetOverlayController: NSWindowController {
 
     private func updateInputPassthrough(for petFrame: CGRect) {
         guard let panel = window as? PetOverlayPanel else { return }
+        panel.ignoresMouseEvents = false
+    }
 
-        let shouldProtectFloatingBall =
-            currentHomeAnchor?
-            .frame
-            .insetBy(
-                dx: -Input.floatingBallProtectionPadding,
-                dy: -Input.floatingBallProtectionPadding
-            )
-            .intersects(petFrame) == true
+    private func completeManualDrag(at origin: CGPoint) {
+        defer {
+            actorController.endManualDrag()
+        }
 
-        panel.ignoresMouseEvents = shouldProtectFloatingBall
+        guard
+            !isRoamingEnabled,
+            let currentScreen,
+            let currentHomeAnchor
+        else {
+            return
+        }
+
+        let clampedOrigin = clampedWindowOrigin(
+            origin,
+            visibleFrame: currentScreen.visibleFrame
+        )
+        let relativeOriginOffset = CGPoint(
+            x: clampedOrigin.x - currentHomeAnchor.frame.origin.x,
+            y: clampedOrigin.y - currentHomeAnchor.frame.origin.y
+        )
+        let updatedHomeAnchor = PetHomeAnchor(
+            frame: currentHomeAnchor.frame,
+            visibleFrame: currentHomeAnchor.visibleFrame,
+            relativeOriginOffset: relativeOriginOffset
+        )
+
+        self.currentHomeAnchor = updatedHomeAnchor
+        relativeHomeOffsetDidChange?(asset.id, relativeOriginOffset)
+        actorController.updateEnvironment(
+            movementBounds: movementBounds(for: currentScreen),
+            homeOrigin: updatedHomeAnchor.preferredOrigin(for: asset)
+        )
+    }
+
+    private func dragCaptureRect(for asset: DesktopPetAsset) -> CGRect {
+        let bounds = CGRect(origin: .zero, size: asset.layout.panelSize)
+        let inset = asset.layout.riveInset
+        let captureRect = CGRect(
+            x: bounds.minX + inset.left,
+            y: bounds.minY + inset.bottom,
+            width: bounds.width - inset.left - inset.right,
+            height: bounds.height - inset.top - inset.bottom
+        )
+
+        guard captureRect.width > 0, captureRect.height > 0 else {
+            return bounds
+        }
+
+        return captureRect
+    }
+
+    private func clampedWindowOrigin(
+        _ origin: CGPoint,
+        visibleFrame: CGRect
+    ) -> CGPoint {
+        let screenPadding = asset.layout.attachment.screenPadding
+        let minX = visibleFrame.minX + screenPadding
+        let maxX = visibleFrame.maxX - asset.layout.panelSize.width - screenPadding
+        let minY = visibleFrame.minY + screenPadding
+        let maxY = visibleFrame.maxY - asset.layout.panelSize.height - screenPadding
+
+        return CGPoint(
+            x: min(max(origin.x, minX), maxX),
+            y: min(max(origin.y, minY), maxY)
+        )
     }
 }
 
@@ -167,10 +237,106 @@ private final class PetOverlayPanel: NSPanel {
 private final class PetOverlayPassthroughView: NSView {
 
     weak var actorView: NSView?
+    var dragCaptureRect: CGRect = .zero {
+        didSet {
+            window?.invalidateCursorRects(for: self)
+        }
+    }
+    var dragDidBegin: (() -> Void)?
+    var dragDidMove: ((CGPoint) -> Void)?
+    var dragDidEnd: ((CGPoint) -> Void)?
+    private var dragOffsetInWindow: CGPoint?
+    private var trackingArea: NSTrackingArea?
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+
+        if let trackingArea {
+            removeTrackingArea(trackingArea)
+        }
+
+        let trackingArea = NSTrackingArea(
+            rect: .zero,
+            options: [.activeAlways, .inVisibleRect, .mouseMoved, .mouseEnteredAndExited, .cursorUpdate],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(trackingArea)
+        self.trackingArea = trackingArea
+    }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        guard let actorView else { return nil }
-        let pointInActor = convert(point, to: actorView)
-        return actorView.hitTest(pointInActor)
+        guard actorView != nil else { return nil }
+
+        if dragOffsetInWindow != nil {
+            return self
+        }
+
+        return dragCaptureRect.contains(point) ? self : nil
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        dragOffsetInWindow = event.locationInWindow
+        NSCursor.closedHand.push()
+        dragDidBegin?()
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard
+            let window,
+            let dragOffsetInWindow
+        else {
+            return
+        }
+
+        let mouseInScreen = window.convertPoint(toScreen: event.locationInWindow)
+        let origin = CGPoint(
+            x: mouseInScreen.x - dragOffsetInWindow.x,
+            y: mouseInScreen.y - dragOffsetInWindow.y
+        )
+        dragDidMove?(origin)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard dragOffsetInWindow != nil else { return }
+
+        dragOffsetInWindow = nil
+        NSCursor.pop()
+        updateCursor(for: convert(event.locationInWindow, from: nil))
+        dragDidEnd?(window?.frame.origin ?? .zero)
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        updateCursor(for: convert(event.locationInWindow, from: nil))
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        updateCursor(for: convert(event.locationInWindow, from: nil))
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        guard dragOffsetInWindow == nil else { return }
+        NSCursor.arrow.set()
+    }
+
+    override func cursorUpdate(with event: NSEvent) {
+        updateCursor(for: convert(event.locationInWindow, from: nil))
+    }
+
+    private func updateCursor(for point: CGPoint) {
+        guard dragOffsetInWindow == nil else {
+            NSCursor.closedHand.set()
+            return
+        }
+
+        if dragCaptureRect.contains(point) {
+            NSCursor.openHand.set()
+        } else {
+            NSCursor.arrow.set()
+        }
     }
 }

@@ -98,6 +98,9 @@ final class PetWorldController {
             asset: asset,
             isRoamingEnabled: isRoamingEnabled
         )
+        overlayController.relativeHomeOffsetDidChange = { [weak self] assetID, offset in
+            self?.relativeHomeOffsets[assetID] = offset
+        }
         self.overlayController = overlayController
         return overlayController
     }
