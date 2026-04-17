@@ -193,6 +193,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let petWorldController = PetWorldController(
+            preferences: preferences,
             asset: preferences.desktopPetAsset,
             isRoamingEnabled: preferences.desktopPetAllowsRoaming
         )

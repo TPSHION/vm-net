@@ -125,8 +125,14 @@ final class AppPreferences: ObservableObject {
             "cn.tpshion.vm-net.floating-ball-background-opacity"
         static let floatingBallOriginX = "cn.tpshion.vm-net.floating-ball-origin-x"
         static let floatingBallOriginY = "cn.tpshion.vm-net.floating-ball-origin-y"
+        static let floatingBallNormalizedOriginX =
+            "cn.tpshion.vm-net.floating-ball-normalized-origin-x"
+        static let floatingBallNormalizedOriginY =
+            "cn.tpshion.vm-net.floating-ball-normalized-origin-y"
         static let floatingBallScreenIdentifier =
             "cn.tpshion.vm-net.floating-ball-screen-identifier"
+        static let desktopPetRelativeHomeOffsets =
+            "cn.tpshion.vm-net.desktop-pet-relative-home-offsets"
     }
 
     private let defaults: UserDefaults
@@ -225,12 +231,50 @@ final class AppPreferences: ObservableObject {
         }
     }
 
+    @Published private(set) var floatingBallNormalizedOriginX: Double? {
+        didSet {
+            persistOptionalDouble(
+                floatingBallNormalizedOriginX,
+                forKey: Keys.floatingBallNormalizedOriginX
+            )
+        }
+    }
+
+    @Published private(set) var floatingBallNormalizedOriginY: Double? {
+        didSet {
+            persistOptionalDouble(
+                floatingBallNormalizedOriginY,
+                forKey: Keys.floatingBallNormalizedOriginY
+            )
+        }
+    }
+
+    @Published private(set) var desktopPetRelativeHomeOffsets: [String: [String: Double]] {
+        didSet {
+            defaults.set(
+                desktopPetRelativeHomeOffsets,
+                forKey: Keys.desktopPetRelativeHomeOffsets
+            )
+        }
+    }
+
     var floatingBallOrigin: CGPoint? {
         guard let floatingBallOriginX, let floatingBallOriginY else {
             return nil
         }
 
         return CGPoint(x: floatingBallOriginX, y: floatingBallOriginY)
+    }
+
+    var floatingBallNormalizedOrigin: CGPoint? {
+        guard let floatingBallNormalizedOriginX, let floatingBallNormalizedOriginY else {
+            return nil
+        }
+
+        return CGPoint(
+            x: floatingBallNormalizedOriginX,
+            y: floatingBallNormalizedOriginY
+        )
     }
 
     var desktopPetAsset: DesktopPetAsset {
@@ -290,19 +334,59 @@ final class AppPreferences: ObservableObject {
         self.floatingBallOriginY = defaults.object(
             forKey: Keys.floatingBallOriginY
         ) as? Double
+        self.floatingBallNormalizedOriginX = defaults.object(
+            forKey: Keys.floatingBallNormalizedOriginX
+        ) as? Double
+        self.floatingBallNormalizedOriginY = defaults.object(
+            forKey: Keys.floatingBallNormalizedOriginY
+        ) as? Double
         self.floatingBallScreenIdentifier = defaults.string(
             forKey: Keys.floatingBallScreenIdentifier
         )
+        self.desktopPetRelativeHomeOffsets = defaults.dictionary(
+            forKey: Keys.desktopPetRelativeHomeOffsets
+        ) as? [String: [String: Double]] ?? [:]
         L10n.setLanguage(appLanguage)
     }
 
     func setFloatingBallPlacement(
         origin: CGPoint?,
+        normalizedOrigin: CGPoint?,
         screenIdentifier: String?
     ) {
         floatingBallOriginX = origin.map { Double($0.x) }
         floatingBallOriginY = origin.map { Double($0.y) }
+        floatingBallNormalizedOriginX = normalizedOrigin.map { Double($0.x) }
+        floatingBallNormalizedOriginY = normalizedOrigin.map { Double($0.y) }
         floatingBallScreenIdentifier = screenIdentifier
+    }
+
+    func desktopPetRelativeHomeOffset(
+        for assetID: DesktopPetAssetID
+    ) -> CGPoint? {
+        guard
+            let stored = desktopPetRelativeHomeOffsets[assetID.rawValue],
+            let x = stored["x"],
+            let y = stored["y"]
+        else {
+            return nil
+        }
+
+        return CGPoint(x: x, y: y)
+    }
+
+    func setDesktopPetRelativeHomeOffset(
+        _ offset: CGPoint?,
+        for assetID: DesktopPetAssetID
+    ) {
+        if let offset {
+            desktopPetRelativeHomeOffsets[assetID.rawValue] = [
+                "x": offset.x,
+                "y": offset.y,
+            ]
+        } else {
+            desktopPetRelativeHomeOffsets.removeValue(forKey: assetID.rawValue)
+        }
     }
 
     func resetFloatingBallAppearance() {

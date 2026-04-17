@@ -10,6 +10,7 @@ import AppKit
 @MainActor
 final class PetWorldController {
 
+    private let preferences: AppPreferences
     private var asset: DesktopPetAsset
     private var isRoamingEnabled: Bool
     private var overlayController: PetOverlayController?
@@ -18,11 +19,16 @@ final class PetWorldController {
     private weak var currentScreen: NSScreen?
 
     init(
+        preferences: AppPreferences,
         asset: DesktopPetAsset,
         isRoamingEnabled: Bool = true
     ) {
+        self.preferences = preferences
         self.asset = asset
         self.isRoamingEnabled = isRoamingEnabled
+        self.relativeHomeOffsets = Self.loadRelativeHomeOffsets(
+            from: preferences
+        )
     }
 
     func applyAsset(_ asset: DesktopPetAsset) {
@@ -100,8 +106,28 @@ final class PetWorldController {
         )
         overlayController.relativeHomeOffsetDidChange = { [weak self] assetID, offset in
             self?.relativeHomeOffsets[assetID] = offset
+            self?.preferences.setDesktopPetRelativeHomeOffset(
+                offset,
+                for: assetID
+            )
         }
         self.overlayController = overlayController
         return overlayController
+    }
+
+    private static func loadRelativeHomeOffsets(
+        from preferences: AppPreferences
+    ) -> [DesktopPetAssetID: CGPoint] {
+        Dictionary(
+            uniqueKeysWithValues: DesktopPetAssetID.allCases.compactMap { assetID in
+                guard let offset = preferences.desktopPetRelativeHomeOffset(
+                    for: assetID
+                ) else {
+                    return nil
+                }
+
+                return (assetID, offset)
+            }
+        )
     }
 }

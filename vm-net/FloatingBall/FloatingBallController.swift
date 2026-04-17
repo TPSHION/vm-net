@@ -196,6 +196,11 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenu
 
         preferences.setFloatingBallPlacement(
             origin: window.frame.origin,
+            normalizedOrigin: normalizedOrigin(
+                for: window.frame.origin,
+                size: window.frame.size,
+                in: window.screen?.visibleFrame
+            ),
             screenIdentifier: window.screen?.displayIdentifier
         )
     }
@@ -211,7 +216,10 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenu
         }
 
         let proposedOrigin =
-            preferences.floatingBallOrigin
+            restoredPersistedOrigin(
+                for: size,
+                in: targetScreen.visibleFrame
+            )
             ?? defaultOrigin(in: targetScreen.visibleFrame, size: size)
 
         return clampedOrigin(
@@ -232,10 +240,78 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenu
     }
 
     private func defaultOrigin(in visibleFrame: CGRect, size: NSSize) -> CGPoint {
-        CGPoint(
-            x: visibleFrame.maxX - size.width - Layout.screenPadding,
-            y: visibleFrame.maxY - size.height - Layout.screenPadding
+        let compositionFrame = defaultCompositionFrame(
+            for: size,
+            asset: preferences.showDesktopPet ? preferences.desktopPetAsset : nil
         )
+
+        return CGPoint(
+            x: visibleFrame.maxX - compositionFrame.maxX - Layout.screenPadding,
+            y: visibleFrame.maxY - compositionFrame.maxY - Layout.screenPadding
+        )
+    }
+
+    private func restoredPersistedOrigin(
+        for size: NSSize,
+        in visibleFrame: CGRect
+    ) -> CGPoint? {
+        if let normalizedOrigin = preferences.floatingBallNormalizedOrigin {
+            return origin(
+                fromNormalizedOrigin: normalizedOrigin,
+                size: size,
+                in: visibleFrame
+            )
+        }
+
+        return preferences.floatingBallOrigin
+    }
+
+    private func defaultCompositionFrame(
+        for floatingBallSize: NSSize,
+        asset: DesktopPetAsset?
+    ) -> CGRect {
+        guard let asset else {
+            return CGRect(origin: .zero, size: floatingBallSize)
+        }
+
+        let petOrigin = defaultPetOrigin(
+            relativeToFloatingBallOfSize: floatingBallSize,
+            asset: asset
+        )
+        let floatingBallFrame = CGRect(origin: .zero, size: floatingBallSize)
+        let petFrame = CGRect(origin: petOrigin, size: asset.layout.panelSize)
+
+        return floatingBallFrame.union(petFrame)
+    }
+
+    private func defaultPetOrigin(
+        relativeToFloatingBallOfSize floatingBallSize: NSSize,
+        asset: DesktopPetAsset
+    ) -> CGPoint {
+        let attachment = asset.layout.attachment
+        let petSize = asset.layout.panelSize
+        let sharedY =
+            (floatingBallSize.height / 2)
+            - (petSize.height / 2)
+            + attachment.verticalOffset
+
+        let leftOrigin = CGPoint(
+            x: -petSize.width + attachment.overlap + attachment.horizontalOffset,
+            y: sharedY
+        )
+        let rightOrigin = CGPoint(
+            x: floatingBallSize.width - attachment.overlap + attachment.horizontalOffset,
+            y: sharedY
+        )
+
+        switch attachment.preferredSide {
+        case .left:
+            return leftOrigin
+        case .right:
+            return rightOrigin
+        case .automatic:
+            return leftOrigin
+        }
     }
 
     private func clampedOrigin(
@@ -252,6 +328,70 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenu
             x: min(max(origin.x, minX), maxX),
             y: min(max(origin.y, minY), maxY)
         )
+    }
+
+    private func normalizedOrigin(
+        for origin: CGPoint,
+        size: NSSize,
+        in visibleFrame: CGRect?
+    ) -> CGPoint? {
+        guard let visibleFrame else { return nil }
+
+        let minX = visibleFrame.minX + Layout.screenPadding
+        let maxX = visibleFrame.maxX - size.width - Layout.screenPadding
+        let minY = visibleFrame.minY + Layout.screenPadding
+        let maxY = visibleFrame.maxY - size.height - Layout.screenPadding
+
+        let normalizedX = normalizedComponent(
+            origin.x,
+            min: minX,
+            max: maxX
+        )
+        let normalizedY = normalizedComponent(
+            origin.y,
+            min: minY,
+            max: maxY
+        )
+
+        return CGPoint(x: normalizedX, y: normalizedY)
+    }
+
+    private func origin(
+        fromNormalizedOrigin normalizedOrigin: CGPoint,
+        size: NSSize,
+        in visibleFrame: CGRect
+    ) -> CGPoint {
+        let minX = visibleFrame.minX + Layout.screenPadding
+        let maxX = visibleFrame.maxX - size.width - Layout.screenPadding
+        let minY = visibleFrame.minY + Layout.screenPadding
+        let maxY = visibleFrame.maxY - size.height - Layout.screenPadding
+
+        return CGPoint(
+            x: denormalizedComponent(normalizedOrigin.x, min: minX, max: maxX),
+            y: denormalizedComponent(normalizedOrigin.y, min: minY, max: maxY)
+        )
+    }
+
+    private func normalizedComponent(
+        _ value: CGFloat,
+        min lowerBound: CGFloat,
+        max upperBound: CGFloat
+    ) -> CGFloat {
+        guard upperBound > lowerBound else { return 0 }
+        return Swift.min(
+            Swift.max((value - lowerBound) / (upperBound - lowerBound), 0),
+            1
+        )
+    }
+
+    private func denormalizedComponent(
+        _ value: CGFloat,
+        min lowerBound: CGFloat,
+        max upperBound: CGFloat
+    ) -> CGFloat {
+        guard upperBound > lowerBound else { return lowerBound }
+        let clampedValue = Swift.min(Swift.max(value, 0), 1)
+        return lowerBound + (clampedValue * (upperBound - lowerBound))
     }
 
     private func notifyFrameChange() {

@@ -368,6 +368,7 @@ final class PetActorController {
             return
         }
 
+        behaviorEngine.resetAfterManualRelocation()
         state = .idle
         destinationOrigin = currentOrigin
         currentSpeed = 0
