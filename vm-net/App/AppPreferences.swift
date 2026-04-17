@@ -10,6 +10,47 @@ import Combine
 import CoreGraphics
 import Foundation
 
+enum AppLanguage: String, CaseIterable, Identifiable {
+    case system
+    case english
+    case simplifiedChinese
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .system:
+            return L10n.tr("language.system")
+        case .english:
+            return L10n.tr("language.english")
+        case .simplifiedChinese:
+            return L10n.tr("language.simplifiedChinese")
+        }
+    }
+
+    var locale: Locale {
+        switch self {
+        case .system:
+            return .autoupdatingCurrent
+        case .english:
+            return Locale(identifier: "en")
+        case .simplifiedChinese:
+            return Locale(identifier: "zh-Hans")
+        }
+    }
+
+    var localizationIdentifier: String? {
+        switch self {
+        case .system:
+            return nil
+        case .english:
+            return "en"
+        case .simplifiedChinese:
+            return "zh-Hans"
+        }
+    }
+}
+
 enum ThroughputDisplayMode: String, CaseIterable, Identifiable {
     case smoothed
     case realtime
@@ -19,18 +60,18 @@ enum ThroughputDisplayMode: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .smoothed:
-            return "平滑显示"
+            return L10n.tr("displayMode.smoothed.title")
         case .realtime:
-            return "实时显示"
+            return L10n.tr("displayMode.realtime.title")
         }
     }
 
     var summary: String {
         switch self {
         case .smoothed:
-            return "减小跳动，更适合常驻查看。"
+            return L10n.tr("displayMode.smoothed.summary")
         case .realtime:
-            return "直接显示瞬时速率，响应更快。"
+            return L10n.tr("displayMode.realtime.summary")
         }
     }
 
@@ -65,6 +106,7 @@ final class AppPreferences: ObservableObject {
     static let defaultFloatingBallBackgroundTransparency = 0.08
 
     private enum Keys {
+        static let appLanguage = "cn.tpshion.vm-net.app-language"
         static let displayMode = "cn.tpshion.vm-net.display-mode"
         static let showInFloatingBall = "cn.tpshion.vm-net.show-in-floating-ball"
         static let showDesktopPet = "cn.tpshion.vm-net.show-desktop-pet"
@@ -88,6 +130,13 @@ final class AppPreferences: ObservableObject {
     }
 
     private let defaults: UserDefaults
+
+    @Published var appLanguage: AppLanguage {
+        didSet {
+            defaults.set(appLanguage.rawValue, forKey: Keys.appLanguage)
+            L10n.setLanguage(appLanguage)
+        }
+    }
 
     @Published var displayMode: ThroughputDisplayMode {
         didSet {
@@ -202,6 +251,9 @@ final class AppPreferences: ObservableObject {
         let storedDesktopPetAllowsRoaming =
             defaults.object(forKey: Keys.desktopPetAllowsRoaming) as? Bool ?? true
 
+        self.appLanguage = AppLanguage(
+            rawValue: defaults.string(forKey: Keys.appLanguage) ?? ""
+        ) ?? .system
         self.displayMode = ThroughputDisplayMode(
             rawValue: defaults.string(forKey: Keys.displayMode) ?? ""
         ) ?? .realtime
@@ -241,6 +293,7 @@ final class AppPreferences: ObservableObject {
         self.floatingBallScreenIdentifier = defaults.string(
             forKey: Keys.floatingBallScreenIdentifier
         )
+        L10n.setLanguage(appLanguage)
     }
 
     func setFloatingBallPlacement(

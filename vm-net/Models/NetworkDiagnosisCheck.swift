@@ -17,11 +17,11 @@ enum NetworkDiagnosisCheckKind: String, Codable, CaseIterable, Identifiable, Sen
     var title: String {
         switch self {
         case .path:
-            return "网络路径"
+            return L10n.tr("diagnosis.check.kind.path")
         case .dns:
-            return "DNS 解析"
+            return L10n.tr("diagnosis.check.kind.dns")
         case .https:
-            return "HTTPS 连通性"
+            return L10n.tr("diagnosis.check.kind.https")
         }
     }
 }
@@ -35,13 +35,13 @@ enum NetworkDiagnosisCheckStatus: String, Codable, Equatable, Sendable {
     var title: String {
         switch self {
         case .success:
-            return "正常"
+            return L10n.tr("diagnosis.check.status.success")
         case .warning:
-            return "注意"
+            return L10n.tr("diagnosis.check.status.warning")
         case .failure:
-            return "异常"
+            return L10n.tr("diagnosis.check.status.failure")
         case .skipped:
-            return "已跳过"
+            return L10n.tr("diagnosis.check.status.skipped")
         }
     }
 }

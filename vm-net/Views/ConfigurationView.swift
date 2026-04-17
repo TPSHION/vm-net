@@ -40,6 +40,7 @@ struct ConfigurationView: View {
                 desktopPetPage
             }
         }
+        .environment(\.locale, preferences.appLanguage.locale)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(.horizontal, 24)
     }
@@ -89,7 +90,7 @@ struct ConfigurationView: View {
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("默认常驻状态栏，也可以额外打开桌面悬浮胶囊。")
+            Text(L10n.tr("settings.header.subtitle"))
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
         }
@@ -100,10 +101,10 @@ struct ConfigurationView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Toggle(isOn: launchAtLoginBinding) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("开机自动启动")
+                        Text(L10n.tr("settings.launch.autoStart.title"))
                             .font(.system(size: 13, weight: .medium))
 
-                        Text("登录 macOS 后自动启动 vm-net，并保持状态栏监控。")
+                        Text(L10n.tr("settings.launch.autoStart.subtitle"))
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                     }
@@ -120,11 +121,37 @@ struct ConfigurationView: View {
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(L10n.tr("settings.language.title"))
+                            .font(.system(size: 13, weight: .medium))
+
+                        Spacer(minLength: 16)
+
+                        Picker(
+                            L10n.tr("settings.language.title"),
+                            selection: $preferences.appLanguage
+                        ) {
+                            ForEach(AppLanguage.allCases) { language in
+                                Text(language.title).tag(language)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                    }
+
+                    Text(L10n.tr("settings.language.description"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(4)
         } label: {
-            Text("启动")
+            Text(L10n.tr("settings.launch.sectionTitle"))
         }
     }
 
@@ -133,10 +160,10 @@ struct ConfigurationView: View {
             VStack(alignment: .leading, spacing: 14) {
                 Toggle(isOn: floatingBallBinding) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("悬浮胶囊")
+                        Text(L10n.tr("settings.presentation.floatingBall.title"))
                             .font(.system(size: 13, weight: .medium))
 
-                        Text("在桌面常驻一个小胶囊，同时显示上传和下载。")
+                        Text(L10n.tr("settings.presentation.floatingBall.subtitle"))
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                     }
@@ -145,10 +172,10 @@ struct ConfigurationView: View {
 
                 Toggle(isOn: desktopPetBinding) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("桌面宠物")
+                        Text(L10n.tr("settings.presentation.desktopPet.title"))
                             .font(.system(size: 13, weight: .medium))
 
-                        Text("让 \(preferences.desktopPetAsset.displayName) 在屏幕里自由活动，并把悬浮胶囊当作它的家。")
+                        Text(L10n.tr("settings.presentation.desktopPet.subtitle", preferences.desktopPetAsset.displayName))
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                     }
@@ -158,7 +185,7 @@ struct ConfigurationView: View {
                 desktopPetEntryButton
 
                 if preferences.showDesktopPet && !preferences.showInFloatingBall {
-                    Text("桌面宠物需要悬浮胶囊作为家；当前胶囊关闭，所以宠物会先保持隐藏。")
+                    Text(L10n.tr("desktopPet.requiresFloatingBall"))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
@@ -166,24 +193,24 @@ struct ConfigurationView: View {
                 Divider()
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("点击右侧颜色按钮即可修改外观。")
+                    Text(L10n.tr("settings.presentation.appearanceHint"))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
 
                     colorPickerRow(
-                        title: "背景颜色",
+                        title: L10n.tr("settings.presentation.backgroundColor"),
                         selection: floatingBallBackgroundColorBinding
                     )
 
                     colorPickerRow(
-                        title: "文字颜色",
+                        title: L10n.tr("settings.presentation.textColor"),
                         selection: floatingBallTextColorBinding
                     )
 
                     colorPreviewCard
 
                     labeledSlider(
-                        title: "背景透明度",
+                        title: L10n.tr("settings.presentation.backgroundTransparency"),
                         value: $preferences.floatingBallBackgroundTransparency,
                         range: 0...0.6,
                         description: backgroundTransparencySummary
@@ -202,7 +229,7 @@ struct ConfigurationView: View {
                     displayModeHeaderColumn
                 }
 
-                Picker("速率显示模式", selection: $preferences.displayMode) {
+                Picker(L10n.tr("settings.presentation.displayMode"), selection: $preferences.displayMode) {
                     ForEach(ThroughputDisplayMode.allCases) { mode in
                         Text(mode.title).tag(mode)
                     }
@@ -216,7 +243,7 @@ struct ConfigurationView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(4)
         } label: {
-            Text("展示")
+            Text(L10n.tr("settings.presentation.sectionTitle"))
         }
     }
 
@@ -235,7 +262,7 @@ struct ConfigurationView: View {
             }
             .padding(4)
         } label: {
-            Text("功能")
+            Text(L10n.tr("settings.features.sectionTitle"))
         }
     }
 
@@ -310,7 +337,7 @@ struct ConfigurationView: View {
         let fillOpacity = max(0.4, 1 - preferences.floatingBallBackgroundTransparency)
 
         return VStack(alignment: .leading, spacing: 8) {
-            Text("当前效果")
+            Text(L10n.tr("settings.presentation.currentEffect"))
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
 
@@ -394,11 +421,11 @@ struct ConfigurationView: View {
 
     private var launchApprovalRow: some View {
         HStack(spacing: 10) {
-            Text("系统需要你在“登录项”里允许 vm-net。")
+            Text(L10n.tr("settings.launch.approvalHint"))
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
 
-            Button("打开系统设置") {
+            Button(L10n.tr("settings.launch.openSystemSettings")) {
                 launchAtLoginManager.openSystemSettings()
             }
             .controlSize(.small)
@@ -407,11 +434,11 @@ struct ConfigurationView: View {
 
     private var launchApprovalColumn: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("系统需要你在“登录项”里允许 vm-net。")
+            Text(L10n.tr("settings.launch.approvalHint"))
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
 
-            Button("打开系统设置") {
+            Button(L10n.tr("settings.launch.openSystemSettings")) {
                 launchAtLoginManager.openSystemSettings()
             }
             .controlSize(.small)
@@ -420,13 +447,13 @@ struct ConfigurationView: View {
 
     private var appearanceFooterRow: some View {
         HStack(spacing: 12) {
-            Text("颜色修改会立即作用到悬浮胶囊。")
+            Text(L10n.tr("settings.presentation.appearanceApplyHint"))
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
 
             Spacer(minLength: 12)
 
-            Button("恢复默认外观") {
+            Button(L10n.tr("settings.presentation.resetAppearance")) {
                 preferences.resetFloatingBallAppearance()
             }
             .controlSize(.small)
@@ -435,11 +462,11 @@ struct ConfigurationView: View {
 
     private var appearanceFooterColumn: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("颜色修改会立即作用到悬浮胶囊。")
+            Text(L10n.tr("settings.presentation.appearanceApplyHint"))
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
 
-            Button("恢复默认外观") {
+            Button(L10n.tr("settings.presentation.resetAppearance")) {
                 preferences.resetFloatingBallAppearance()
             }
             .controlSize(.small)
@@ -448,7 +475,7 @@ struct ConfigurationView: View {
 
     private var displayModeHeaderRow: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("速率显示模式")
+            Text(L10n.tr("settings.presentation.displayMode"))
                 .font(.system(size: 13, weight: .medium))
 
             Spacer(minLength: 16)
@@ -461,7 +488,7 @@ struct ConfigurationView: View {
 
     private var displayModeHeaderColumn: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("速率显示模式")
+            Text(L10n.tr("settings.presentation.displayMode"))
                 .font(.system(size: 13, weight: .medium))
 
             Text(preferences.displayMode.title)
@@ -472,8 +499,8 @@ struct ConfigurationView: View {
 
     private var speedTestEntryButton: some View {
         featureEntryButton(
-            title: "网络测速",
-            subtitle: "进入专门页面，运行 M-Lab 下载与上传测速。"
+            title: L10n.tr("settings.feature.speedTest.title"),
+            subtitle: L10n.tr("settings.feature.speedTest.subtitle")
         ) {
             page = .speedTest
         }
@@ -481,8 +508,8 @@ struct ConfigurationView: View {
 
     private var desktopPetEntryButton: some View {
         featureEntryButton(
-            title: "桌宠配置",
-            subtitle: "进入专门页面，预览 \(preferences.desktopPetAsset.displayName) 并管理桌宠显示与活动方式。"
+            title: L10n.tr("settings.feature.desktopPet.title"),
+            subtitle: L10n.tr("settings.feature.desktopPet.subtitle", preferences.desktopPetAsset.displayName)
         ) {
             page = .desktopPet
         }
@@ -490,8 +517,8 @@ struct ConfigurationView: View {
 
     private var diagnosisEntryButton: some View {
         featureEntryButton(
-            title: "网络诊断",
-            subtitle: "检查网络路径、DNS 和 HTTPS 连通性。"
+            title: L10n.tr("settings.feature.diagnosis.title"),
+            subtitle: L10n.tr("settings.feature.diagnosis.subtitle")
         ) {
             page = .diagnosis
         }

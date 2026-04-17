@@ -21,6 +21,21 @@ struct SpeedTestPageView: View {
         store.recentResults
     }
 
+    private var displayedStatusMessage: String {
+        switch snapshot.phase {
+        case .idle:
+            return L10n.tr("speedTest.snapshot.idleStatus")
+        case .cancelled:
+            return L10n.tr("speedTest.store.cancelled")
+        case .completed:
+            return L10n.tr("speedTest.store.completed")
+        case .failed:
+            return L10n.tr("speedTest.store.failed")
+        default:
+            return snapshot.statusMessage
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             headerRow
@@ -34,19 +49,19 @@ struct SpeedTestPageView: View {
     private var headerRow: some View {
         HStack(spacing: 12) {
             Button(action: onBack) {
-                Label("返回设置", systemImage: "chevron.left")
+                Label(L10n.tr("navigation.backToSettings"), systemImage: "chevron.left")
             }
             .buttonStyle(.link)
 
             Spacer(minLength: 0)
 
             if snapshot.isRunning {
-                Button("取消") {
+                Button(L10n.tr("common.cancel")) {
                     store.cancelTest()
                 }
                 .controlSize(.small)
             } else {
-                Button("开始测速") {
+                Button(L10n.tr("speedTest.start")) {
                     store.startTest()
                 }
                 .controlSize(.small)
@@ -66,7 +81,7 @@ struct SpeedTestPageView: View {
                             Text(snapshot.phase.title)
                                 .font(.system(size: 18, weight: .semibold))
 
-                            Text(snapshot.statusMessage)
+                            Text(displayedStatusMessage)
                                 .font(.system(size: 13))
                                 .foregroundStyle(.secondary)
                         }
@@ -90,12 +105,12 @@ struct SpeedTestPageView: View {
                         .foregroundStyle(.secondary)
 
                     HStack(spacing: 6) {
-                        Text("开始测速即表示你同意连接 M-Lab，测试数据可能进入公开数据集。")
+                        Text(L10n.tr("speedTest.disclaimer"))
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
 
                         Link(
-                            "查看政策",
+                            L10n.tr("speedTest.viewPolicy"),
                             destination: URL(string: "https://www.measurementlab.net/aup/")!
                         )
                         .font(.system(size: 12))
@@ -105,7 +120,7 @@ struct SpeedTestPageView: View {
             .padding(8)
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
-            Text("当前状态")
+            Text(L10n.tr("speedTest.currentStatus"))
         }
     }
 
@@ -116,20 +131,20 @@ struct SpeedTestPageView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 12) {
                     speedMetricCard(
-                        title: "延迟",
+                        title: L10n.tr("speedTest.metric.latency"),
                         value: SpeedTestFormatter.latencyString(
                             milliseconds: snapshot.latencyMilliseconds
                                 ?? lastResult?.latencyMilliseconds
                         )
                     )
                     speedMetricCard(
-                        title: "下载",
+                        title: L10n.tr("speedTest.metric.download"),
                         value: SpeedTestFormatter.throughputString(
                             mbps: snapshot.downloadMbps ?? lastResult?.downloadMbps
                         )
                     )
                     speedMetricCard(
-                        title: "上传",
+                        title: L10n.tr("speedTest.metric.upload"),
                         value: SpeedTestFormatter.throughputString(
                             mbps: snapshot.uploadMbps ?? lastResult?.uploadMbps
                         )
@@ -140,11 +155,11 @@ struct SpeedTestPageView: View {
                     ProgressView()
                         .controlSize(.small)
                 } else if let finishedAt = lastResult?.finishedAt {
-                    Text("最近一次测速：\(SpeedTestFormatter.historyTimestampString(date: finishedAt))")
+                    Text(L10n.tr("speedTest.latestResultAt", SpeedTestFormatter.historyTimestampString(date: finishedAt)))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 } else {
-                    Text("还没有测速结果。")
+                    Text(L10n.tr("speedTest.noResult"))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
@@ -152,14 +167,14 @@ struct SpeedTestPageView: View {
             .padding(8)
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
-            Text("结果概览")
+            Text(L10n.tr("speedTest.resultOverview"))
         }
     }
 
     private var historySection: some View {
         GroupBox {
             if recentResults.isEmpty {
-                Text("完成一次测速后，这里会显示最近结果。")
+                Text(L10n.tr("speedTest.history.empty"))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .padding(8)
@@ -177,7 +192,7 @@ struct SpeedTestPageView: View {
                 .padding(8)
             }
         } label: {
-            Text("最近结果")
+            Text(L10n.tr("speedTest.recentResults"))
         }
     }
 
@@ -197,17 +212,17 @@ struct SpeedTestPageView: View {
 
             HStack(spacing: 10) {
                 historyMetricBadge(
-                    title: "延迟",
+                    title: L10n.tr("speedTest.metric.latency"),
                     value: SpeedTestFormatter.latencyString(
                         milliseconds: result.latencyMilliseconds
                     )
                 )
                 historyMetricBadge(
-                    title: "下载",
+                    title: L10n.tr("speedTest.metric.download"),
                     value: SpeedTestFormatter.throughputString(mbps: result.downloadMbps)
                 )
                 historyMetricBadge(
-                    title: "上传",
+                    title: L10n.tr("speedTest.metric.upload"),
                     value: SpeedTestFormatter.throughputString(mbps: result.uploadMbps)
                 )
             }
@@ -264,11 +279,11 @@ private struct SpeedTestStageStrip: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            stageItem(title: "节点", state: stageState(for: .locatingServer))
+            stageItem(title: L10n.tr("speedTest.stage.server"), state: stageState(for: .locatingServer))
             connector
-            stageItem(title: "下载", state: stageState(for: .measuringDownload))
+            stageItem(title: L10n.tr("speedTest.metric.download"), state: stageState(for: .measuringDownload))
             connector
-            stageItem(title: "上传", state: stageState(for: .measuringUpload))
+            stageItem(title: L10n.tr("speedTest.metric.upload"), state: stageState(for: .measuringUpload))
         }
     }
 
@@ -499,19 +514,19 @@ private struct SpeedTestActivityView: View {
     private var activityLabel: String {
         switch snapshot.phase {
         case .measuringDownload:
-            return "下载中"
+            return L10n.tr("speedTest.activity.downloading")
         case .measuringUpload:
-            return "上传中"
+            return L10n.tr("speedTest.activity.uploading")
         case .completed:
-            return "完成"
+            return L10n.tr("common.completed")
         case .failed:
-            return "失败"
+            return L10n.tr("common.failed")
         case .cancelled:
-            return "已取消"
+            return L10n.tr("common.cancelled")
         case .locatingServer:
-            return "选点中"
+            return L10n.tr("speedTest.activity.locating")
         case .idle:
-            return "待开始"
+            return L10n.tr("common.pendingStart")
         }
     }
 
@@ -524,11 +539,11 @@ private struct SpeedTestActivityView: View {
         case .completed:
             return compactThroughput(snapshot.lastResult?.downloadMbps ?? snapshot.downloadMbps)
         case .failed, .cancelled:
-            return "—"
+            return L10n.tr("common.placeholder")
         case .locatingServer:
             return "M-Lab"
         case .idle:
-            return "Ready"
+            return L10n.tr("common.ready")
         }
     }
 
@@ -552,7 +567,7 @@ private struct SpeedTestActivityView: View {
     }
 
     private func compactThroughput(_ mbps: Double?) -> String {
-        guard let mbps else { return "—" }
+        guard let mbps else { return L10n.tr("common.placeholder") }
 
         if mbps < 10 {
             return String(format: "%.1f", mbps)

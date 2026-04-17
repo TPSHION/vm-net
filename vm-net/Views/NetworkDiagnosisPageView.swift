@@ -26,6 +26,17 @@ struct NetworkDiagnosisPageView: View {
         return (snapshot.phase == .completed || snapshot.phase == .failed) && !snapshot.checks.isEmpty
     }
 
+    private var displayedStatusMessage: String {
+        switch snapshot.phase {
+        case .idle:
+            return L10n.tr("diagnosis.snapshot.idleStatus")
+        case .cancelled:
+            return L10n.tr("diagnosis.store.cancelled")
+        default:
+            return snapshot.statusMessage
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             headerRow
@@ -47,19 +58,19 @@ struct NetworkDiagnosisPageView: View {
     private var headerRow: some View {
         HStack(spacing: 12) {
             Button(action: onBack) {
-                Label("返回设置", systemImage: "chevron.left")
+                Label(L10n.tr("navigation.backToSettings"), systemImage: "chevron.left")
             }
             .buttonStyle(.link)
 
             Spacer(minLength: 0)
 
             if snapshot.isRunning {
-                Button("取消") {
+                Button(L10n.tr("common.cancel")) {
                     store.cancelDiagnosis()
                 }
                 .controlSize(.small)
             } else {
-                Button("开始诊断") {
+                Button(L10n.tr("diagnosis.start")) {
                     store.startDiagnosis()
                 }
                 .controlSize(.small)
@@ -80,7 +91,7 @@ struct NetworkDiagnosisPageView: View {
             .padding(8)
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
-            Text("当前状态")
+            Text(L10n.tr("diagnosis.currentStatus"))
         }
     }
 
@@ -92,14 +103,14 @@ struct NetworkDiagnosisPageView: View {
                     targetControlsColumn
                 }
 
-                Text("默认使用 www.cloudflare.com；诊断会对所选目标执行 DNS 与 HTTPS 检查。")
+                Text(L10n.tr("diagnosis.target.hint"))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }
             .padding(8)
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
-            Text("诊断目标")
+            Text(L10n.tr("diagnosis.target.sectionTitle"))
         }
     }
 
@@ -132,7 +143,7 @@ struct NetworkDiagnosisPageView: View {
             .padding(8)
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
-            Text("诊断结果")
+            Text(L10n.tr("diagnosis.result.sectionTitle"))
         }
     }
 
@@ -144,10 +155,10 @@ struct NetworkDiagnosisPageView: View {
                 .frame(width: 32, height: 32)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("还没有当前诊断结果")
+                Text(L10n.tr("diagnosis.result.emptyTitle"))
                     .font(.system(size: 13, weight: .medium))
 
-                Text("点击右上角“开始诊断”后，这里会展示本次网络路径、DNS 和 HTTPS 检查结果。")
+                Text(L10n.tr("diagnosis.result.emptyDescription"))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -171,20 +182,20 @@ struct NetworkDiagnosisPageView: View {
     private var transientResultMessage: String {
         switch snapshot.phase {
         case .checkingPath, .resolvingDNS, .checkingHTTPS:
-            return "正在收集本次诊断结果…"
+            return L10n.tr("diagnosis.result.collecting")
         case .cancelled:
-            return "本次诊断已取消，没有生成新的结果。"
+            return L10n.tr("diagnosis.result.cancelled")
         case .completed, .failed:
-            return "本次诊断没有可展示的检查明细。"
+            return L10n.tr("diagnosis.result.noDetails")
         case .idle:
-            return "开始一次网络诊断后，这里会显示每一项检查结果。"
+            return L10n.tr("diagnosis.result.idleHint")
         }
     }
 
     private var historySection: some View {
         GroupBox {
             if store.recentResults.isEmpty {
-                Text("完成一次诊断后，这里会保留最近结果。")
+                Text(L10n.tr("diagnosis.history.empty"))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .padding(8)
@@ -199,7 +210,7 @@ struct NetworkDiagnosisPageView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         } label: {
-            Text("最近诊断")
+            Text(L10n.tr("diagnosis.history.sectionTitle"))
         }
     }
 
@@ -231,7 +242,7 @@ struct NetworkDiagnosisPageView: View {
                 Text(snapshot.phase.title)
                     .font(.system(size: 18, weight: .semibold))
 
-                Text(snapshot.statusMessage)
+                Text(displayedStatusMessage)
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }
@@ -267,7 +278,7 @@ struct NetworkDiagnosisPageView: View {
     }
 
     private var targetPicker: some View {
-        Picker("诊断目标", selection: $store.selectedTarget) {
+        Picker(L10n.tr("diagnosis.target.picker"), selection: $store.selectedTarget) {
             ForEach(NetworkDiagnosisTarget.allCases) { target in
                 Text(target.title).tag(target)
             }
@@ -279,7 +290,7 @@ struct NetworkDiagnosisPageView: View {
     }
 
     private var resetTargetButton: some View {
-        Button("恢复默认") {
+        Button(L10n.tr("common.restoreDefault")) {
             store.resetTarget()
         }
         .controlSize(.small)
@@ -360,7 +371,7 @@ struct NetworkDiagnosisPageView: View {
                     value: NetworkDiagnosisFormatter.latencyString(result.httpsLatencyMilliseconds)
                 )
                 compactMetric(
-                    title: "状态",
+                    title: L10n.tr("diagnosis.metric.status"),
                     value: NetworkDiagnosisFormatter.statusCodeString(result.httpStatusCode)
                 )
             }
@@ -598,19 +609,19 @@ private struct DiagnosisActivityView: View {
     private var activityLabel: String {
         switch snapshot.phase {
         case .idle:
-            return "待开始"
+            return L10n.tr("common.pendingStart")
         case .checkingPath:
-            return "Path"
+            return L10n.tr("diagnosis.activity.path")
         case .resolvingDNS:
             return "DNS"
         case .checkingHTTPS:
             return "HTTPS"
         case .completed:
-            return "完成"
+            return L10n.tr("common.completed")
         case .failed:
-            return "异常"
+            return L10n.tr("common.failed")
         case .cancelled:
-            return "取消"
+            return L10n.tr("common.cancelledShort")
         }
     }
 
@@ -621,9 +632,9 @@ private struct DiagnosisActivityView: View {
 
         switch snapshot.phase {
         case .idle:
-            return "等待开始"
+            return L10n.tr("diagnosis.activity.waiting")
         case .cancelled:
-            return "已停止"
+            return L10n.tr("diagnosis.activity.stopped")
         case .completed, .failed:
             return snapshot.lastResult?.headline ?? snapshot.phase.title
         case .checkingPath, .resolvingDNS, .checkingHTTPS:

@@ -55,9 +55,9 @@ actor NetworkDiagnosisService {
         var errorDescription: String? {
             switch self {
             case .pathTimeout:
-                return "获取当前网络路径超时。"
+                return L10n.tr("diagnosis.error.pathTimeout")
             case .invalidTarget:
-                return "诊断目标无效，请输入域名或完整的 https 地址。"
+                return L10n.tr("diagnosis.error.invalidTarget")
             }
         }
     }
@@ -83,7 +83,7 @@ actor NetworkDiagnosisService {
         progressHandler(
             Progress(
                 phase: .checkingPath,
-                statusMessage: "正在检查当前网络路径…",
+                statusMessage: L10n.tr("diagnosis.progress.checkingPath"),
                 targetHost: targetHost,
                 checks: checks,
                 updatedAt: startedAt
@@ -107,11 +107,11 @@ actor NetworkDiagnosisService {
         guard pathInfo.status == .satisfied else {
             let dnsSkipped = skippedCheck(
                 kind: .dns,
-                reason: "当前网络路径不可用，已跳过 DNS 检查。"
+                reason: L10n.tr("diagnosis.reason.skipDNSForUnavailablePath")
             )
             let httpsSkipped = skippedCheck(
                 kind: .https,
-                reason: "当前网络路径不可用，已跳过 HTTPS 检查。"
+                reason: L10n.tr("diagnosis.reason.skipHTTPSForUnavailablePath")
             )
             checks.append(contentsOf: [dnsSkipped, httpsSkipped])
 
@@ -129,7 +129,7 @@ actor NetworkDiagnosisService {
         progressHandler(
             Progress(
                 phase: .resolvingDNS,
-                statusMessage: "正在解析 \(targetHost)…",
+                statusMessage: L10n.tr("diagnosis.progress.resolvingHost", targetHost),
                 targetHost: targetHost,
                 checks: checks,
                 updatedAt: Date()
@@ -153,7 +153,7 @@ actor NetworkDiagnosisService {
         guard dnsInfo.success else {
             let httpsSkipped = skippedCheck(
                 kind: .https,
-                reason: "域名解析失败，已跳过 HTTPS 连通性检查。"
+                reason: L10n.tr("diagnosis.reason.skipHTTPSForDNSFailure")
             )
             checks.append(httpsSkipped)
 
@@ -171,7 +171,7 @@ actor NetworkDiagnosisService {
         progressHandler(
             Progress(
                 phase: .checkingHTTPS,
-                statusMessage: "正在检查 HTTPS 连通性…",
+                statusMessage: L10n.tr("diagnosis.progress.checkingHTTPS"),
                 targetHost: targetHost,
                 checks: checks,
                 updatedAt: Date()
@@ -299,7 +299,7 @@ actor NetworkDiagnosisService {
                         success: !addresses.isEmpty,
                         latencyMilliseconds: Date().timeIntervalSince(startedAt) * 1_000,
                         addresses: Array(addresses.prefix(3)),
-                        errorDescription: addresses.isEmpty ? "没有拿到可用地址。" : nil
+                        errorDescription: addresses.isEmpty ? L10n.tr("diagnosis.error.noUsableAddress") : nil
                     )
                 }.value
             }
@@ -310,7 +310,7 @@ actor NetworkDiagnosisService {
                     success: false,
                     latencyMilliseconds: nil,
                     addresses: [],
-                    errorDescription: "DNS 解析超时。"
+                    errorDescription: L10n.tr("diagnosis.error.dnsTimeout")
                 )
             }
 
@@ -318,7 +318,7 @@ actor NetworkDiagnosisService {
                 success: false,
                 latencyMilliseconds: nil,
                 addresses: [],
-                errorDescription: "DNS 解析失败。"
+                errorDescription: L10n.tr("diagnosis.error.dnsFailure")
             )
             group.cancelAll()
             return first
@@ -352,7 +352,7 @@ actor NetworkDiagnosisService {
                 success: success,
                 latencyMilliseconds: latency,
                 statusCode: statusCode,
-                errorDescription: success ? nil : "服务返回了异常状态码。"
+                errorDescription: success ? nil : L10n.tr("diagnosis.error.badHTTPStatus")
             )
         } catch {
             return HTTPSInfo(
@@ -369,8 +369,8 @@ actor NetworkDiagnosisService {
             return NetworkDiagnosisCheck(
                 kind: .path,
                 status: .failure,
-                summary: "当前网络路径不可用。",
-                detail: "系统没有可用的外部网络路径，请先检查 Wi‑Fi、网线或 VPN。"
+                summary: L10n.tr("diagnosis.path.failure.summary"),
+                detail: L10n.tr("diagnosis.path.failure.detail")
             )
         }
 
@@ -378,7 +378,7 @@ actor NetworkDiagnosisService {
             return NetworkDiagnosisCheck(
                 kind: .path,
                 status: .warning,
-                summary: "网络路径可用，但当前链路有限制。",
+                summary: L10n.tr("diagnosis.path.warning.summary"),
                 detail: pathDetail(from: info)
             )
         }
@@ -386,7 +386,7 @@ actor NetworkDiagnosisService {
         return NetworkDiagnosisCheck(
             kind: .path,
             status: .success,
-            summary: "网络路径正常，可正常访问外网。",
+            summary: L10n.tr("diagnosis.path.success.summary"),
             detail: pathDetail(from: info)
         )
     }
@@ -396,22 +396,22 @@ actor NetworkDiagnosisService {
             return NetworkDiagnosisCheck(
                 kind: .dns,
                 status: .failure,
-                summary: "\(targetHost) 解析失败。",
+                summary: L10n.tr("diagnosis.dns.failure.summary", targetHost),
                 detail: info.errorDescription
             )
         }
 
-        let addressText = info.addresses.joined(separator: "、")
+        let addressText = info.addresses.joined(separator: L10n.tr("common.listSeparator"))
         let detail = [formattedLatency(info.latencyMilliseconds), addressText]
             .filter { !$0.isEmpty }
-            .joined(separator: " · ")
+            .joined(separator: L10n.tr("common.detailSeparator"))
 
         if let latency = info.latencyMilliseconds,
            latency >= Constants.dnsWarningThresholdMilliseconds {
             return NetworkDiagnosisCheck(
                 kind: .dns,
                 status: .warning,
-                summary: "\(targetHost) 已解析，但耗时偏高。",
+                summary: L10n.tr("diagnosis.dns.warning.summary", targetHost),
                 detail: detail
             )
         }
@@ -419,7 +419,7 @@ actor NetworkDiagnosisService {
         return NetworkDiagnosisCheck(
             kind: .dns,
             status: .success,
-            summary: "\(targetHost) 解析正常。",
+            summary: L10n.tr("diagnosis.dns.success.summary", targetHost),
             detail: detail
         )
     }
@@ -428,33 +428,33 @@ actor NetworkDiagnosisService {
         guard info.success else {
             let detail = [
                 formattedLatency(info.latencyMilliseconds),
-                info.statusCode.map { "HTTP \($0)" },
+                info.statusCode.map { L10n.tr("common.httpStatusCode", $0) },
                 info.errorDescription
             ]
             .compactMap { $0 }
-            .joined(separator: " · ")
+            .joined(separator: L10n.tr("common.detailSeparator"))
 
             return NetworkDiagnosisCheck(
                 kind: .https,
                 status: .failure,
-                summary: "无法通过 HTTPS 访问 \(targetHost)。",
+                summary: L10n.tr("diagnosis.https.failure.summary", targetHost),
                 detail: detail.isEmpty ? nil : detail
             )
         }
 
         let detail = [
             formattedLatency(info.latencyMilliseconds),
-            info.statusCode.map { "HTTP \($0)" }
+            info.statusCode.map { L10n.tr("common.httpStatusCode", $0) }
         ]
         .compactMap { $0 }
-        .joined(separator: " · ")
+        .joined(separator: L10n.tr("common.detailSeparator"))
 
         if let latency = info.latencyMilliseconds,
            latency >= Constants.httpsWarningThresholdMilliseconds {
             return NetworkDiagnosisCheck(
                 kind: .https,
                 status: .warning,
-                summary: "HTTPS 可达，但响应偏慢。",
+                summary: L10n.tr("diagnosis.https.warning.summary"),
                 detail: detail
             )
         }
@@ -462,7 +462,7 @@ actor NetworkDiagnosisService {
         return NetworkDiagnosisCheck(
             kind: .https,
             status: .success,
-            summary: "HTTPS 连通性正常。",
+            summary: L10n.tr("diagnosis.https.success.summary"),
             detail: detail
         )
     }
@@ -474,7 +474,7 @@ actor NetworkDiagnosisService {
         NetworkDiagnosisCheck(
             kind: kind,
             status: .skipped,
-            summary: kind.title + "已跳过。",
+            summary: L10n.tr("diagnosis.check.skipped.summary", kind.title),
             detail: reason
         )
     }
@@ -504,17 +504,17 @@ actor NetworkDiagnosisService {
 
         switch overallStatus {
         case .success:
-            headline = "网络连接正常"
-            summary = "网络路径、DNS 解析和 HTTPS 连通性都通过了检查。"
+            headline = L10n.tr("diagnosis.result.success.headline")
+            summary = L10n.tr("diagnosis.result.success.summary")
         case .warning:
-            headline = problematicCheck?.summary ?? "网络基本正常"
-            summary = problematicCheck?.detail ?? "有个别检查项偏慢或受限，但整体可用。"
+            headline = problematicCheck?.summary ?? L10n.tr("diagnosis.result.warning.headlineFallback")
+            summary = problematicCheck?.detail ?? L10n.tr("diagnosis.result.warning.summaryFallback")
         case .failure:
-            headline = problematicCheck?.summary ?? "网络存在异常"
-            summary = problematicCheck?.detail ?? "至少有一项关键检查没有通过。"
+            headline = problematicCheck?.summary ?? L10n.tr("diagnosis.result.failure.headlineFallback")
+            summary = problematicCheck?.detail ?? L10n.tr("diagnosis.result.failure.summaryFallback")
         case .skipped:
-            headline = "诊断未完成"
-            summary = "有检查项被跳过。"
+            headline = L10n.tr("diagnosis.result.skipped.headline")
+            summary = L10n.tr("diagnosis.result.skipped.summary")
         }
 
         return NetworkDiagnosisResult(
@@ -535,14 +535,14 @@ actor NetworkDiagnosisService {
         var parts = [info.interfaceSummary]
 
         if info.isExpensive {
-            parts.append("计费网络")
+            parts.append(L10n.tr("diagnosis.pathDetail.expensive"))
         }
 
         if info.isConstrained {
-            parts.append("受限网络")
+            parts.append(L10n.tr("diagnosis.pathDetail.constrained"))
         }
 
-        return parts.joined(separator: " · ")
+        return parts.joined(separator: L10n.tr("common.detailSeparator"))
     }
 
     private func formattedLatency(_ latency: Double?) -> String {
@@ -557,16 +557,18 @@ actor NetworkDiagnosisService {
             interfaces.append("Wi‑Fi")
         }
         if path.usesInterfaceType(.wiredEthernet) {
-            interfaces.append("有线网络")
+            interfaces.append(L10n.tr("diagnosis.interface.wired"))
         }
         if path.usesInterfaceType(.cellular) {
-            interfaces.append("蜂窝网络")
+            interfaces.append(L10n.tr("diagnosis.interface.cellular"))
         }
         if path.usesInterfaceType(.other) {
-            interfaces.append("其他接口")
+            interfaces.append(L10n.tr("diagnosis.interface.other"))
         }
 
-        return interfaces.isEmpty ? "未识别接口" : interfaces.joined(separator: " / ")
+        return interfaces.isEmpty
+            ? L10n.tr("diagnosis.interface.unknown")
+            : interfaces.joined(separator: " / ")
     }
 
     private static func normalizedURL(from target: String) throws -> URL {

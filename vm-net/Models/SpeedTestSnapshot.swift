@@ -20,7 +20,7 @@ struct SpeedTestSnapshot: Equatable {
 
     static let idle = SpeedTestSnapshot(
         phase: .idle,
-        statusMessage: "手动发起一次网络测速。",
+        statusMessage: L10n.tr("speedTest.snapshot.idleStatus"),
         serverName: nil,
         latencyMilliseconds: nil,
         downloadMbps: nil,

@@ -44,7 +44,7 @@ enum PetRendererFactory {
         case .sceneKit:
             return DisabledPetRenderer(
                 asset: asset,
-                message: "\(definition.displayName)\n暂未启用"
+                message: L10n.tr("desktopPet.renderer.unavailable", definition.displayName)
             )
         }
     }

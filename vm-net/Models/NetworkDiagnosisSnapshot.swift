@@ -18,7 +18,7 @@ struct NetworkDiagnosisSnapshot: Equatable {
 
     static let idle = NetworkDiagnosisSnapshot(
         phase: .idle,
-        statusMessage: "手动发起一次网络诊断。",
+        statusMessage: L10n.tr("diagnosis.snapshot.idleStatus"),
         targetHost: NetworkDiagnosisTarget.cloudflare.host,
         checks: [],
         lastResult: nil,

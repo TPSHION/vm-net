@@ -69,6 +69,16 @@ final class StatusItemController {
                 self?.render(snapshot)
             }
             .store(in: &cancellables)
+
+        preferences.$appLanguage
+            .dropFirst()
+            .sink { [weak self] _ in
+                self?.configureMenu()
+                if let snapshot = self?.store.snapshot {
+                    self?.render(snapshot)
+                }
+            }
+            .store(in: &cancellables)
     }
 
     private func render(_ snapshot: NetworkMonitorSnapshot) {
@@ -82,8 +92,8 @@ final class StatusItemController {
         )
 
         statusItem.button?.toolTip = snapshot.monitoredInterfaceName.map {
-            "Monitoring \($0)"
-        } ?? "Monitoring network throughput"
+            L10n.tr("statusItem.tooltip.monitoringInterface", $0)
+        } ?? L10n.tr("statusItem.tooltip.monitoringThroughput")
     }
 
     @objc

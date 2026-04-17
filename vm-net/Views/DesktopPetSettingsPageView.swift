@@ -54,7 +54,7 @@ struct DesktopPetSettingsPageView: View {
     private var headerRow: some View {
         HStack(spacing: 12) {
             Button(action: onBack) {
-                Label("返回设置", systemImage: "chevron.left")
+                Label(L10n.tr("navigation.backToSettings"), systemImage: "chevron.left")
             }
             .buttonStyle(.link)
 
@@ -71,10 +71,10 @@ struct DesktopPetSettingsPageView: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("当前预览")
+                    Text(L10n.tr("desktopPet.preview.currentTitle"))
                         .font(.system(size: 13, weight: .medium))
 
-                    Text("这里展示的是当前预览选择；切换形象不会立即作用到桌面宠物，点击应用后才会实际生效。")
+                    Text(L10n.tr("desktopPet.preview.description"))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
@@ -121,21 +121,21 @@ struct DesktopPetSettingsPageView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     if runtimeReadyAssets.count > 1 {
-                        Text("左右切换预览：\(previewIndexLabel)")
+                        Text(L10n.tr("desktopPet.preview.switchHint", previewIndexLabel))
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                     }
 
-                    Text("已应用形象：\(preferences.desktopPetAsset.displayName)")
+                    Text(L10n.tr("desktopPet.preview.appliedAsset", preferences.desktopPetAsset.displayName))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
 
                     if hasPendingPetSelection {
-                        Text("待应用形象：\(previewAsset.displayName)")
+                        Text(L10n.tr("desktopPet.preview.pendingAsset", previewAsset.displayName))
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(.primary)
                     } else {
-                        Text("当前预览和实际桌宠一致。")
+                        Text(L10n.tr("desktopPet.preview.inSync"))
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                     }
@@ -143,7 +143,7 @@ struct DesktopPetSettingsPageView: View {
 
                 if runtimeReadyAssets.count > 1 {
                     HStack(spacing: 10) {
-                        FirstMouseButton("恢复已应用形象") {
+                        FirstMouseButton(L10n.tr("desktopPet.preview.restoreApplied")) {
                             previewAssetID = preferences.desktopPetAssetID
                         }
                         .disabled(!hasPendingPetSelection)
@@ -151,7 +151,7 @@ struct DesktopPetSettingsPageView: View {
                         Spacer(minLength: 0)
 
                         FirstMouseButton(
-                            "应用到桌面宠物",
+                            L10n.tr("desktopPet.preview.apply"),
                             isProminent: true
                         ) {
                             onDesktopPetAssetApply(previewAssetID)
@@ -163,23 +163,23 @@ struct DesktopPetSettingsPageView: View {
                 Divider()
 
                 FirstMouseToggleRow(
-                    title: "启用桌面宠物",
+                    title: L10n.tr("desktopPet.toggle.enable"),
                     isOn: desktopPetBinding
                 )
 
                 FirstMouseToggleRow(
-                    title: "允许宠物巡游",
+                    title: L10n.tr("desktopPet.toggle.roaming"),
                     isOn: roamingBinding
                 )
 
                 if runtimeReadyAssets.count <= 1 {
-                    Text("当前版本先保留单一桌宠形象，底层资源切换架构仍然保留，后续可以继续扩展。")
+                    Text(L10n.tr("desktopPet.singleAssetHint"))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
 
                 if preferences.showDesktopPet && !preferences.showInFloatingBall {
-                    Text("桌宠需要悬浮胶囊作为家；当前胶囊关闭，所以实际桌宠会先保持隐藏。")
+                    Text(L10n.tr("desktopPet.requiresFloatingBall"))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
@@ -187,7 +187,7 @@ struct DesktopPetSettingsPageView: View {
             .padding(8)
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
-            Text("预览")
+            Text(L10n.tr("desktopPet.preview.sectionTitle"))
         }
     }
 

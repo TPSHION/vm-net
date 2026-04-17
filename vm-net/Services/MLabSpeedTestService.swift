@@ -120,11 +120,11 @@ actor MLabSpeedTestService {
         var errorDescription: String? {
             switch self {
             case .noAvailableServer:
-                return "未找到可用的 M-Lab 节点。"
+                return L10n.tr("speedTest.error.noAvailableServer")
             case .invalidServerResponse:
-                return "M-Lab 返回了无法识别的测速数据。"
+                return L10n.tr("speedTest.error.invalidServerResponse")
             case .invalidServerURL:
-                return "M-Lab 节点地址无效。"
+                return L10n.tr("speedTest.error.invalidServerURL")
             }
         }
     }
@@ -158,7 +158,7 @@ actor MLabSpeedTestService {
             progressHandler(
                 Progress(
                     phase: .locatingServer,
-                    statusMessage: "正在选择 M-Lab 节点…",
+                    statusMessage: L10n.tr("speedTest.progress.locatingServer"),
                     serverName: nil,
                     latencyMilliseconds: nil,
                     downloadMbps: nil,
@@ -176,7 +176,10 @@ actor MLabSpeedTestService {
                     progressHandler(
                         Progress(
                             phase: .locatingServer,
-                            statusMessage: "已连接 \(server.name)",
+                            statusMessage: L10n.tr(
+                                "speedTest.progress.connectedServer",
+                                server.name
+                            ),
                             serverName: server.name,
                             latencyMilliseconds: nil,
                             downloadMbps: nil,
@@ -207,7 +210,7 @@ actor MLabSpeedTestService {
                     progressHandler(
                         Progress(
                             phase: .completed,
-                            statusMessage: "测速完成",
+                            statusMessage: L10n.tr("speedTest.progress.completed"),
                             serverName: result.serverName,
                             latencyMilliseconds: result.latencyMilliseconds,
                             downloadMbps: result.downloadMbps,
@@ -227,7 +230,7 @@ actor MLabSpeedTestService {
                         progressHandler(
                             Progress(
                                 phase: .locatingServer,
-                                statusMessage: "当前节点不可用，正在切换备用节点…",
+                                statusMessage: L10n.tr("speedTest.progress.switchingFallback"),
                                 serverName: server.name,
                                 latencyMilliseconds: nil,
                                 downloadMbps: nil,
@@ -302,7 +305,7 @@ actor MLabSpeedTestService {
         progressHandler(
             Progress(
                 phase: .measuringDownload,
-                statusMessage: "正在测试下载…",
+                statusMessage: L10n.tr("speedTest.progress.measuringDownload"),
                 serverName: server.name,
                 latencyMilliseconds: nil,
                 downloadMbps: nil,
@@ -342,7 +345,7 @@ actor MLabSpeedTestService {
                 progressHandler(
                     Progress(
                         phase: .measuringDownload,
-                        statusMessage: "正在测试下载…",
+                        statusMessage: L10n.tr("speedTest.progress.measuringDownload"),
                         serverName: server.name,
                         latencyMilliseconds: lastLatencyMilliseconds,
                         downloadMbps: lastReportedMbps ?? clientMbps,
@@ -387,7 +390,7 @@ actor MLabSpeedTestService {
         progressHandler(
             Progress(
                 phase: .measuringUpload,
-                statusMessage: "正在测试上传…",
+                statusMessage: L10n.tr("speedTest.progress.measuringUpload"),
                 serverName: server.name,
                 latencyMilliseconds: initialLatencyMilliseconds,
                 downloadMbps: nil,
@@ -444,7 +447,7 @@ actor MLabSpeedTestService {
                 progressHandler(
                     Progress(
                         phase: .measuringUpload,
-                        statusMessage: "正在测试上传…",
+                        statusMessage: L10n.tr("speedTest.progress.measuringUpload"),
                         serverName: server.name,
                         latencyMilliseconds: receiveSummary.latencyMilliseconds,
                         downloadMbps: nil,

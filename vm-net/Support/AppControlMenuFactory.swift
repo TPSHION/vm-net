@@ -16,7 +16,7 @@ enum AppControlMenuFactory {
         let menu = NSMenu()
 
         let openWindowItem = NSMenuItem(
-            title: "Open vm-net",
+            title: L10n.tr("menu.openWindow"),
             action: openSelector,
             keyEquivalent: ""
         )
@@ -25,7 +25,7 @@ enum AppControlMenuFactory {
         menu.addItem(.separator())
 
         let quitItem = NSMenuItem(
-            title: "Quit",
+            title: L10n.tr("menu.quit"),
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
         )

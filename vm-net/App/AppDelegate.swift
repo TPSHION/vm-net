@@ -42,6 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         bindPreferences()
         ensureStatusItemController()
+        refreshLocalization()
         if preferences.showInFloatingBall {
             ensureFloatingBallController()
         }
@@ -69,6 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func showMainWindow() {
         launchAtLoginManager.refresh()
+        refreshLocalization()
         configurationWindowController.present()
     }
 
@@ -213,5 +215,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.refreshDesktopPetVisibility()
             }
             .store(in: &cancellables)
+
+        preferences.$appLanguage
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.speedTestStore.reloadLocalization()
+                self.diagnosisStore.reloadLocalization()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func refreshLocalization() {
+        speedTestStore.reloadLocalization()
+        diagnosisStore.reloadLocalization()
     }
 }

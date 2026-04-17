@@ -49,7 +49,7 @@ final class NetworkDiagnosisStore: ObservableObject {
         self.selectedTarget = selectedTarget
         self.snapshot = NetworkDiagnosisSnapshot(
             phase: .idle,
-            statusMessage: "手动发起一次网络诊断。",
+            statusMessage: L10n.tr("diagnosis.snapshot.idleStatus"),
             targetHost: selectedTarget.host,
             checks: [],
             lastResult: recentResults.first,
@@ -70,7 +70,7 @@ final class NetworkDiagnosisStore: ObservableObject {
 
         snapshot = NetworkDiagnosisSnapshot(
             phase: .checkingPath,
-            statusMessage: "正在准备网络诊断…",
+            statusMessage: L10n.tr("diagnosis.store.preparing"),
             targetHost: selectedTarget.host,
             checks: [],
             lastResult: snapshot.lastResult,
@@ -102,7 +102,7 @@ final class NetworkDiagnosisStore: ObservableObject {
             } catch is CancellationError {
                 snapshot = NetworkDiagnosisSnapshot(
                     phase: .cancelled,
-                    statusMessage: "网络诊断已取消",
+                    statusMessage: L10n.tr("diagnosis.store.cancelled"),
                     targetHost: snapshot.targetHost,
                     checks: snapshot.checks,
                     lastResult: snapshot.lastResult,
@@ -112,7 +112,7 @@ final class NetworkDiagnosisStore: ObservableObject {
             } catch {
                 snapshot = NetworkDiagnosisSnapshot(
                     phase: .failed,
-                    statusMessage: "网络诊断失败",
+                    statusMessage: L10n.tr("diagnosis.store.failed"),
                     targetHost: snapshot.targetHost,
                     checks: snapshot.checks,
                     lastResult: snapshot.lastResult,
@@ -132,6 +132,29 @@ final class NetworkDiagnosisStore: ObservableObject {
 
     func resetTarget() {
         selectedTarget = Self.defaultTarget
+    }
+
+    func reloadLocalization() {
+        let localizedStatusMessage: String
+
+        switch snapshot.phase {
+        case .idle:
+            localizedStatusMessage = L10n.tr("diagnosis.snapshot.idleStatus")
+        case .cancelled:
+            localizedStatusMessage = L10n.tr("diagnosis.store.cancelled")
+        case .checkingPath, .resolvingDNS, .checkingHTTPS, .completed, .failed:
+            return
+        }
+
+        snapshot = NetworkDiagnosisSnapshot(
+            phase: snapshot.phase,
+            statusMessage: localizedStatusMessage,
+            targetHost: snapshot.targetHost,
+            checks: snapshot.checks,
+            lastResult: snapshot.lastResult,
+            lastUpdatedAt: snapshot.lastUpdatedAt,
+            errorMessage: snapshot.errorMessage
+        )
     }
 
     private func apply(_ progress: NetworkDiagnosisService.Progress) {

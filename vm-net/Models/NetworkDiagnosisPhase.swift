@@ -28,38 +28,38 @@ enum NetworkDiagnosisPhase: String, Equatable, Sendable {
     var title: String {
         switch self {
         case .idle:
-            return "准备诊断"
+            return L10n.tr("diagnosis.phase.idle.title")
         case .checkingPath:
-            return "检查网络路径"
+            return L10n.tr("diagnosis.phase.checkingPath.title")
         case .resolvingDNS:
-            return "检查 DNS"
+            return L10n.tr("diagnosis.phase.resolvingDNS.title")
         case .checkingHTTPS:
-            return "检查 HTTPS"
+            return L10n.tr("diagnosis.phase.checkingHTTPS.title")
         case .completed:
-            return "诊断完成"
+            return L10n.tr("diagnosis.phase.completed.title")
         case .failed:
-            return "诊断完成"
+            return L10n.tr("diagnosis.phase.failed.title")
         case .cancelled:
-            return "诊断已取消"
+            return L10n.tr("diagnosis.phase.cancelled.title")
         }
     }
 
     var detail: String {
         switch self {
         case .idle:
-            return "检查当前网络路径、DNS 和 HTTPS 连通性。"
+            return L10n.tr("diagnosis.phase.idle.detail")
         case .checkingPath:
-            return "确认当前网络是否可达，以及走的是哪种网络路径。"
+            return L10n.tr("diagnosis.phase.checkingPath.detail")
         case .resolvingDNS:
-            return "测试诊断目标的域名解析和解析耗时。"
+            return L10n.tr("diagnosis.phase.resolvingDNS.detail")
         case .checkingHTTPS:
-            return "发起 HTTPS 请求，确认连接、握手和响应是否正常。"
+            return L10n.tr("diagnosis.phase.checkingHTTPS.detail")
         case .completed:
-            return "诊断已完成，可以查看每一项检查结果。"
+            return L10n.tr("diagnosis.phase.completed.detail")
         case .failed:
-            return "诊断没有完全通过，请查看异常项。"
+            return L10n.tr("diagnosis.phase.failed.detail")
         case .cancelled:
-            return "诊断已中止，本次结果不会写入历史。"
+            return L10n.tr("diagnosis.phase.cancelled.detail")
         }
     }
 

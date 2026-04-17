@@ -28,38 +28,38 @@ enum SpeedTestPhase: String, Equatable, Sendable {
     var title: String {
         switch self {
         case .idle:
-            return "准备测速"
+            return L10n.tr("speedTest.phase.idle.title")
         case .locatingServer:
-            return "选择节点"
+            return L10n.tr("speedTest.phase.locatingServer.title")
         case .measuringDownload:
-            return "下载测速"
+            return L10n.tr("speedTest.phase.measuringDownload.title")
         case .measuringUpload:
-            return "上传测速"
+            return L10n.tr("speedTest.phase.measuringUpload.title")
         case .completed:
-            return "测速完成"
+            return L10n.tr("speedTest.phase.completed.title")
         case .failed:
-            return "测速失败"
+            return L10n.tr("speedTest.phase.failed.title")
         case .cancelled:
-            return "测速已取消"
+            return L10n.tr("speedTest.phase.cancelled.title")
         }
     }
 
     var detail: String {
         switch self {
         case .idle:
-            return "手动发起一次完整的网络测速。"
+            return L10n.tr("speedTest.phase.idle.detail")
         case .locatingServer:
-            return "正在选择距离更近、状态更好的 M-Lab 节点。"
+            return L10n.tr("speedTest.phase.locatingServer.detail")
         case .measuringDownload:
-            return "正在持续拉取测试流量，测量当前下载带宽。"
+            return L10n.tr("speedTest.phase.measuringDownload.detail")
         case .measuringUpload:
-            return "正在持续发送测试流量，测量当前上传带宽。"
+            return L10n.tr("speedTest.phase.measuringUpload.detail")
         case .completed:
-            return "本次测速已经完成，可以查看结果或再次开始。"
+            return L10n.tr("speedTest.phase.completed.detail")
         case .failed:
-            return "本次测速没有成功完成，可以稍后重试。"
+            return L10n.tr("speedTest.phase.failed.detail")
         case .cancelled:
-            return "测速已手动中止，当前结果不会写入历史。"
+            return L10n.tr("speedTest.phase.cancelled.detail")
         }
     }
 

@@ -141,6 +141,13 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate {
             self?.applyAppearance()
         }
         .store(in: &cancellables)
+
+        preferences.$appLanguage
+            .dropFirst()
+            .sink { [weak self] _ in
+                self?.refreshMenuLocalization()
+            }
+            .store(in: &cancellables)
     }
 
     private func render(_ snapshot: NetworkMonitorSnapshot) {
@@ -163,6 +170,13 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate {
     @objc
     private func handleOpenWindow() {
         openWindowHandler?()
+    }
+
+    private func refreshMenuLocalization() {
+        contentView.menu = AppControlMenuFactory.makeMenu(
+            target: self,
+            openSelector: #selector(handleOpenWindow)
+        )
     }
 
     private func persistWindowPlacement() {

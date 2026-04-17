@@ -35,7 +35,7 @@ final class SpeedTestStore: ObservableObject {
         self.recentResults = Self.loadRecentResults(from: defaults)
         self.snapshot = SpeedTestSnapshot(
             phase: .idle,
-            statusMessage: "手动发起一次网络测速。",
+            statusMessage: L10n.tr("speedTest.snapshot.idleStatus"),
             serverName: nil,
             latencyMilliseconds: nil,
             downloadMbps: nil,
@@ -59,7 +59,7 @@ final class SpeedTestStore: ObservableObject {
 
         snapshot = SpeedTestSnapshot(
             phase: .locatingServer,
-            statusMessage: "正在选择 M-Lab 节点…",
+            statusMessage: L10n.tr("speedTest.store.locatingServer"),
             serverName: nil,
             latencyMilliseconds: nil,
             downloadMbps: nil,
@@ -81,7 +81,7 @@ final class SpeedTestStore: ObservableObject {
 
                 snapshot = SpeedTestSnapshot(
                     phase: .completed,
-                    statusMessage: "测速完成",
+                    statusMessage: L10n.tr("speedTest.store.completed"),
                     serverName: result.serverName,
                     latencyMilliseconds: result.latencyMilliseconds,
                     downloadMbps: result.downloadMbps,
@@ -94,7 +94,7 @@ final class SpeedTestStore: ObservableObject {
             } catch is CancellationError {
                 snapshot = SpeedTestSnapshot(
                     phase: .cancelled,
-                    statusMessage: "测速已取消",
+                    statusMessage: L10n.tr("speedTest.store.cancelled"),
                     serverName: snapshot.serverName,
                     latencyMilliseconds: snapshot.latencyMilliseconds,
                     downloadMbps: snapshot.downloadMbps,
@@ -106,7 +106,7 @@ final class SpeedTestStore: ObservableObject {
             } catch {
                 snapshot = SpeedTestSnapshot(
                     phase: .failed,
-                    statusMessage: "测速失败",
+                    statusMessage: L10n.tr("speedTest.store.failed"),
                     serverName: snapshot.serverName,
                     latencyMilliseconds: snapshot.latencyMilliseconds,
                     downloadMbps: snapshot.downloadMbps,
@@ -128,6 +128,35 @@ final class SpeedTestStore: ObservableObject {
         Task {
             await service.cancel()
         }
+    }
+
+    func reloadLocalization() {
+        let localizedStatusMessage: String
+
+        switch snapshot.phase {
+        case .idle:
+            localizedStatusMessage = L10n.tr("speedTest.snapshot.idleStatus")
+        case .completed:
+            localizedStatusMessage = L10n.tr("speedTest.store.completed")
+        case .failed:
+            localizedStatusMessage = L10n.tr("speedTest.store.failed")
+        case .cancelled:
+            localizedStatusMessage = L10n.tr("speedTest.store.cancelled")
+        case .locatingServer, .measuringDownload, .measuringUpload:
+            return
+        }
+
+        snapshot = SpeedTestSnapshot(
+            phase: snapshot.phase,
+            statusMessage: localizedStatusMessage,
+            serverName: snapshot.serverName,
+            latencyMilliseconds: snapshot.latencyMilliseconds,
+            downloadMbps: snapshot.downloadMbps,
+            uploadMbps: snapshot.uploadMbps,
+            lastResult: snapshot.lastResult,
+            lastUpdatedAt: snapshot.lastUpdatedAt,
+            errorMessage: snapshot.errorMessage
+        )
     }
 
     private func apply(_ progress: MLabSpeedTestService.Progress) {
