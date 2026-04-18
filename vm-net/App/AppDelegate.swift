@@ -11,6 +11,10 @@ import Combine
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
+    private enum LaunchTiming {
+        static let overlayBootstrapDelay: TimeInterval = 0.6
+    }
+
     private let preferences = AppPreferences()
     private let launchAtLoginManager = LaunchAtLoginManager()
     private let desktopPetAccessStore = DesktopPetAccessStore()
@@ -21,9 +25,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         preferences: preferences,
         processTrafficStore: processTrafficStore
     )
+    private lazy var activityTimelineStore = ActivityTimelineStore(
+        processTrafficStore: processTrafficStore,
+        alertStore: alertStore
+    )
     private let speedTestStore = SpeedTestStore()
     private let diagnosisStore = NetworkDiagnosisStore()
     private var cancellables = Set<AnyCancellable>()
+    private var startupOverlayWorkItem: DispatchWorkItem?
     private var statusItemController: StatusItemController?
     private var floatingBallController: FloatingBallController?
     private var petWorldController: PetWorldController?
@@ -35,6 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         throughputStore: throughputStore,
         processTrafficStore: processTrafficStore,
         alertStore: alertStore,
+        activityTimelineStore: activityTimelineStore,
         speedTestStore: speedTestStore,
         diagnosisStore: diagnosisStore,
         onFloatingBallToggle: { [weak self] isEnabled in
@@ -59,14 +69,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             await self?.desktopPetAccessStore.prepare()
             self?.synchronizeDesktopPetAccess()
         }
-        if preferences.showInFloatingBall {
-            ensureFloatingBallController()
-        }
-        refreshDesktopPetVisibility()
-
         if !LaunchAtLoginManager.wasLaunchedAtLogin {
             showMainWindow()
         }
+
+        scheduleOverlayBootstrap()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(
@@ -76,6 +83,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        startupOverlayWorkItem?.cancel()
+        startupOverlayWorkItem = nil
         statusItemController?.invalidate()
         statusItemController = nil
         floatingBallController?.hide()
@@ -178,6 +187,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.floatingBallController = floatingBallController
     }
 
+    private func scheduleOverlayBootstrap() {
+        startupOverlayWorkItem?.cancel()
+
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+
+            if self.preferences.showInFloatingBall {
+                self.ensureFloatingBallController()
+            }
+
+            self.refreshDesktopPetVisibility()
+            self.startupOverlayWorkItem = nil
+        }
+
+        startupOverlayWorkItem = workItem
+
+        let delay = LaunchAtLoginManager.wasLaunchedAtLogin
+            ? 0
+            : LaunchTiming.overlayBootstrapDelay
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + delay,
+            execute: workItem
+        )
+    }
+
     private func refreshDesktopPetVisibility() {
         guard
             desktopPetAccessStore.status.hasAccess,
@@ -267,6 +301,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.diagnosisStore.reloadLocalization()
                 self.processTrafficStore.reloadLocalization()
                 self.alertStore.reloadLocalization()
+                self.activityTimelineStore.reloadLocalization()
             }
             .store(in: &cancellables)
 
@@ -281,6 +316,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func refreshLocalization() {
         speedTestStore.reloadLocalization()
         diagnosisStore.reloadLocalization()
+        processTrafficStore.reloadLocalization()
+        alertStore.reloadLocalization()
+        activityTimelineStore.reloadLocalization()
     }
 
     private func synchronizeDesktopPetAccess() {

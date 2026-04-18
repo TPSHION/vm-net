@@ -10,11 +10,16 @@ import SwiftUI
 
 struct NetworkActivityPageView: View {
 
+    private struct ProcessActionFeedback: Identifiable {
+        let id = UUID()
+        let message: String
+        let isError: Bool
+    }
+
     private enum ProcessSortOption: String, CaseIterable, Identifiable {
         case total
         case download
         case upload
-        case connections
 
         var id: String { rawValue }
 
@@ -26,8 +31,6 @@ struct NetworkActivityPageView: View {
                 return L10n.tr("activity.process.sort.download")
             case .upload:
                 return L10n.tr("activity.process.sort.upload")
-            case .connections:
-                return L10n.tr("activity.process.sort.connections")
             }
         }
     }
@@ -54,13 +57,17 @@ struct NetworkActivityPageView: View {
     @ObservedObject var throughputStore: ThroughputStore
     @ObservedObject var processTrafficStore: ProcessTrafficStore
     @ObservedObject var alertStore: AlertStore
+    @ObservedObject var activityTimelineStore: ActivityTimelineStore
     let onBack: () -> Void
 
     @State private var sortOption: ProcessSortOption = .total
     @State private var filterOption: ProcessFilterOption = .all
     @State private var searchQuery = ""
+    @State private var terminationCandidate: ProcessTrafficProcessRecord?
+    @State private var processActionFeedback: ProcessActionFeedback?
 
     private let byteRateFormatter = ByteRateFormatter()
+    private let processTerminationService = ProcessTerminationService()
 
     private var throughputSnapshot: NetworkMonitorSnapshot {
         throughputStore.snapshot
@@ -91,6 +98,7 @@ struct NetworkActivityPageView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     summarySection
                     alertSection
+                    timelineSection
                     processSection
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -99,6 +107,34 @@ struct NetworkActivityPageView: View {
             .scrollIndicators(.hidden)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .onDisappear {
+            processTrafficStore.deactivateMonitoring()
+        }
+        .confirmationDialog(
+            terminationDialogTitle,
+            isPresented: terminationDialogPresented,
+            titleVisibility: .visible,
+            presenting: terminationCandidate
+        ) { process in
+            Button(L10n.tr("activity.process.actions.terminate")) {
+                performProcessAction(.graceful, for: process)
+            }
+
+            Button(
+                L10n.tr("activity.process.actions.forceQuit"),
+                role: .destructive
+            ) {
+                performProcessAction(.force, for: process)
+            }
+        } message: { process in
+            Text(
+                L10n.tr(
+                    "activity.process.actions.dialog.message",
+                    process.processName,
+                    process.pid
+                )
+            )
+        }
     }
 
     private var headerRow: some View {
@@ -175,9 +211,7 @@ struct NetworkActivityPageView: View {
     private var processSection: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
-                Text(processSnapshot.statusMessage)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                processAnalysisControlRow
 
                 if let errorMessage = processSnapshot.errorMessage {
                     Text(errorMessage)
@@ -186,24 +220,73 @@ struct NetworkActivityPageView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                processControls
+                if let processActionFeedback {
+                    Text(processActionFeedback.message)
+                        .font(.system(size: 12))
+                        .foregroundStyle(
+                            processActionFeedback.isError
+                                ? Color(nsColor: .systemRed)
+                                : Color(nsColor: .systemGreen)
+                        )
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
-                if processSnapshot.processes.isEmpty {
-                    emptyProcessState
-                } else if displayedProcesses.isEmpty {
-                    emptyFilteredState
-                } else {
-                    processResultsSummary
+                if processTrafficStore.isMonitoring {
+                    processControls
 
-                    ForEach(displayedProcesses) { process in
-                        processRow(process)
+                    if processSnapshot.processes.isEmpty {
+                        emptyProcessState
+                    } else if displayedProcesses.isEmpty {
+                        emptyFilteredState
+                    } else {
+                        processResultsSummary
+
+                        ForEach(displayedProcesses) { process in
+                            processRow(process)
+                        }
                     }
+                } else {
+                    analysisInactiveState
                 }
             }
             .padding(8)
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
             Text(L10n.tr("activity.process.sectionTitle"))
+        }
+    }
+
+    private var processAnalysisControlRow: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(processSnapshot.statusMessage)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+
+                Text(
+                    processTrafficStore.isMonitoring
+                        ? L10n.tr("activity.process.analysis.runningHint")
+                        : L10n.tr("activity.process.analysis.idleHint")
+                )
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 12)
+
+            Button(action: toggleAnalysis) {
+                Label(
+                    processTrafficStore.isMonitoring
+                        ? L10n.tr("activity.process.analysis.stop")
+                        : L10n.tr("activity.process.analysis.start"),
+                    systemImage: processTrafficStore.isMonitoring
+                        ? "stop.circle"
+                        : "play.circle"
+                )
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
         }
     }
 
@@ -224,6 +307,26 @@ struct NetworkActivityPageView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
             Text(L10n.tr("activity.alert.sectionTitle"))
+        }
+    }
+
+    private var timelineSection: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 12) {
+                if activityTimelineStore.recentEvents.isEmpty {
+                    Text(L10n.tr("activity.timeline.empty"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(activityTimelineStore.recentEvents) { event in
+                        timelineRow(event)
+                    }
+                }
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } label: {
+            Text(L10n.tr("activity.timeline.sectionTitle"))
         }
     }
 
@@ -324,6 +427,32 @@ struct NetworkActivityPageView: View {
         )
     }
 
+    private var analysisInactiveState: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "waveform.badge.magnifyingglass")
+                .font(.system(size: 24, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 32, height: 32)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L10n.tr("activity.process.analysis.inactiveTitle"))
+                    .font(.system(size: 13, weight: .medium))
+
+                Text(L10n.tr("activity.process.analysis.inactiveDescription"))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.45))
+        )
+    }
+
     private func processRow(_ process: ProcessTrafficProcessRecord) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
@@ -331,22 +460,28 @@ struct NetworkActivityPageView: View {
                     Text(process.processName)
                         .font(.system(size: 13, weight: .medium))
 
-                    if let bundleIdentifier = process.bundleIdentifier {
-                        Text(bundleIdentifier)
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
+                    processIdentityLine(for: process)
                 }
 
                 Spacer(minLength: 12)
 
-                Text("#\(process.activeConnectionCount)")
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                Button {
+                    terminationCandidate = process
+                } label: {
+                    Label(
+                        L10n.tr("activity.process.actions.button"),
+                        systemImage: "power"
+                    )
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
 
             HStack(spacing: 10) {
+                processMetricBadge(
+                    title: L10n.tr("activity.process.metric.pid"),
+                    value: "\(process.pid)"
+                )
                 processMetricBadge(
                     title: L10n.tr("activity.process.metric.download"),
                     value: byteRateFormatter.string(for: process.downloadBytesPerSecond)
@@ -355,22 +490,6 @@ struct NetworkActivityPageView: View {
                     title: L10n.tr("activity.process.metric.upload"),
                     value: byteRateFormatter.string(for: process.uploadBytesPerSecond)
                 )
-                processMetricBadge(
-                    title: L10n.tr("activity.process.metric.connections"),
-                    value: "\(process.activeConnectionCount)"
-                )
-            }
-
-            if !process.remoteHostsTop.isEmpty {
-                Text(
-                    L10n.tr(
-                        "activity.process.metric.hostsValue",
-                        process.remoteHostsTop.joined(separator: L10n.tr("common.listSeparator"))
-                    )
-                )
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
             }
         }
         .padding(12)
@@ -379,6 +498,28 @@ struct NetworkActivityPageView: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor).opacity(0.55))
         )
+    }
+
+    private var terminationDialogPresented: Binding<Bool> {
+        Binding(
+            get: { terminationCandidate != nil },
+            set: { isPresented in
+                if !isPresented {
+                    terminationCandidate = nil
+                }
+            }
+        )
+    }
+
+    private var terminationDialogTitle: String {
+        if let process = terminationCandidate {
+            return L10n.tr(
+                "activity.process.actions.dialog.title",
+                process.processName
+            )
+        }
+
+        return L10n.tr("activity.process.actions.button")
     }
 
     private func summaryMetricCard(
@@ -465,6 +606,37 @@ struct NetworkActivityPageView: View {
         )
     }
 
+    private func timelineRow(_ event: NetworkActivityTimelineEvent) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: event.severity.symbolName)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color(nsColor: event.severity.tintColor))
+                .frame(width: 18, height: 18)
+                .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(event.headline)
+                    .font(.system(size: 13, weight: .medium))
+
+                Text(event.summary)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(SpeedTestFormatter.historyTimestampString(date: event.occurredAt))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.55))
+        )
+    }
+
     private func matchesFilter(_ process: ProcessTrafficProcessRecord) -> Bool {
         switch filterOption {
         case .all:
@@ -496,9 +668,7 @@ struct NetworkActivityPageView: View {
             return true
         }
 
-        return process.remoteHostsTop.contains {
-            $0.localizedLowercase.contains(loweredQuery)
-        }
+        return false
     }
 
     private func sortComparator(
@@ -518,18 +688,10 @@ struct NetworkActivityPageView: View {
             if lhs.uploadBytesPerSecond != rhs.uploadBytesPerSecond {
                 return lhs.uploadBytesPerSecond > rhs.uploadBytesPerSecond
             }
-        case .connections:
-            if lhs.activeConnectionCount != rhs.activeConnectionCount {
-                return lhs.activeConnectionCount > rhs.activeConnectionCount
-            }
         }
 
         if lhs.totalBytesPerSecond != rhs.totalBytesPerSecond {
             return lhs.totalBytesPerSecond > rhs.totalBytesPerSecond
-        }
-
-        if lhs.activeConnectionCount != rhs.activeConnectionCount {
-            return lhs.activeConnectionCount > rhs.activeConnectionCount
         }
 
         if lhs.processName != rhs.processName {
@@ -548,6 +710,72 @@ struct NetworkActivityPageView: View {
             }
 
             return anomaly.processName == process.processName
+        }
+    }
+
+    private func processIdentityLine(for process: ProcessTrafficProcessRecord) -> some View {
+        let bundleIdentifier = process.bundleIdentifier ?? L10n.tr("common.placeholder")
+        let pidLine = L10n.tr("activity.process.identity.pid", process.pid)
+        let detailLine = [
+            bundleIdentifier,
+            pidLine,
+        ].joined(separator: L10n.tr("common.detailSeparator"))
+
+        return Text(detailLine)
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+    }
+
+    private func performProcessAction(
+        _ mode: ProcessTerminationMode,
+        for process: ProcessTrafficProcessRecord
+    ) {
+        terminationCandidate = nil
+
+        do {
+            let result = try processTerminationService.terminate(process, mode: mode)
+            let message: String
+
+            switch result.mode {
+            case .graceful:
+                message = L10n.tr(
+                    "activity.process.action.success.terminate",
+                    process.processName,
+                    process.pid
+                )
+            case .force:
+                message = L10n.tr(
+                    "activity.process.action.success.forceQuit",
+                    process.processName,
+                    process.pid
+                )
+            }
+
+            processActionFeedback = ProcessActionFeedback(
+                message: message,
+                isError: false
+            )
+        } catch {
+            let reason = error.localizedDescription
+            processActionFeedback = ProcessActionFeedback(
+                message: L10n.tr(
+                    "activity.process.action.failure",
+                    process.processName,
+                    reason
+                ),
+                isError: true
+            )
+        }
+    }
+
+    private func toggleAnalysis() {
+        processActionFeedback = nil
+
+        if processTrafficStore.isMonitoring {
+            processTrafficStore.deactivateMonitoring()
+        } else {
+            processTrafficStore.activateMonitoring()
         }
     }
 }

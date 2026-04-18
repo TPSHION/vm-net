@@ -45,6 +45,8 @@ final class FloatingBallContentView: NSView {
     private let backgroundFillLayer = CALayer()
     private var mouseDownScreenLocation: NSPoint?
     private var didDrag = false
+    private var lastUploadText: String?
+    private var lastDownloadText: String?
 
     override var intrinsicContentSize: NSSize {
         Layout.size
@@ -92,12 +94,15 @@ final class FloatingBallContentView: NSView {
         uploadText: String,
         downloadText: String
     ) {
-        uploadLabel.stringValue = uploadText
-        downloadLabel.stringValue = downloadText
-        uploadLabel.alphaValue = 1
-        downloadLabel.alphaValue = 1
-        uploadIcon.alphaValue = 1
-        downloadIcon.alphaValue = 1
+        if uploadText != lastUploadText {
+            uploadLabel.stringValue = uploadText
+            lastUploadText = uploadText
+        }
+
+        if downloadText != lastDownloadText {
+            downloadLabel.stringValue = downloadText
+            lastDownloadText = downloadText
+        }
     }
 
     override func mouseDown(with event: NSEvent) {

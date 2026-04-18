@@ -10,6 +10,52 @@ import SwiftUI
 
 struct ConfigurationView: View {
 
+    private enum OverviewSeverity {
+        case healthy
+        case monitoring
+        case warning
+        case critical
+
+        var tint: Color {
+            switch self {
+            case .healthy:
+                return Color(nsColor: .systemGreen)
+            case .monitoring:
+                return Color(nsColor: .systemBlue)
+            case .warning:
+                return Color(nsColor: .systemOrange)
+            case .critical:
+                return Color(nsColor: .systemRed)
+            }
+        }
+
+        var symbolName: String {
+            switch self {
+            case .healthy:
+                return "checkmark.circle.fill"
+            case .monitoring:
+                return "waveform.path.ecg"
+            case .warning:
+                return "exclamationmark.triangle.fill"
+            case .critical:
+                return "bolt.horizontal.circle.fill"
+            }
+        }
+
+        var title: String {
+            switch self {
+            case .healthy:
+                return L10n.tr("settings.dashboard.status.healthy")
+            case .monitoring:
+                return L10n.tr("settings.dashboard.status.monitoring")
+            case .warning:
+                return L10n.tr("settings.dashboard.status.warning")
+            case .critical:
+                return L10n.tr("settings.dashboard.status.critical")
+            }
+        }
+    }
+
     @ObservedObject var preferences: AppPreferences
     @ObservedObject var navigationStore: ConfigurationNavigationStore
     @ObservedObject var desktopPetAccessStore: DesktopPetAccessStore
@@ -17,6 +63,7 @@ struct ConfigurationView: View {
     @ObservedObject var throughputStore: ThroughputStore
     @ObservedObject var processTrafficStore: ProcessTrafficStore
     @ObservedObject var alertStore: AlertStore
+    @ObservedObject var activityTimelineStore: ActivityTimelineStore
     @ObservedObject var speedTestStore: SpeedTestStore
     @ObservedObject var diagnosisStore: NetworkDiagnosisStore
     let onFloatingBallToggle: (Bool) -> Void
@@ -51,10 +98,12 @@ struct ConfigurationView: View {
 
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 18) {
+                    dashboardSection
+                    quickActionsSection
+                    eventSummarySection
                     launchSection
                     presentationSection
                     activitySection
-                    speedTestEntrySection
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 12)
@@ -71,6 +120,139 @@ struct ConfigurationView: View {
         }
     }
 
+    private var dashboardSection: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .center, spacing: 12) {
+                    Label(overviewSeverity.title, systemImage: overviewSeverity.symbolName)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(overviewSeverity.tint)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(overviewSeverity.tint.opacity(0.12))
+                        )
+
+                    Spacer(minLength: 12)
+
+                    if let timestamp = overviewTimestamp {
+                        Text(timestamp.formatted(date: .omitted, time: .shortened))
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(overviewHeadline)
+                        .font(.system(size: 18, weight: .semibold))
+
+                    Text(overviewSummary)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                HStack(spacing: 12) {
+                    overviewMetricCard(
+                        title: L10n.tr("settings.dashboard.metric.download"),
+                        value: currentDownloadRate
+                    )
+                    overviewMetricCard(
+                        title: L10n.tr("settings.dashboard.metric.upload"),
+                        value: currentUploadRate
+                    )
+                    overviewMetricCard(
+                        title: L10n.tr("settings.dashboard.metric.interface"),
+                        value: monitoredInterfaceName
+                    )
+                }
+
+                if !preferences.activityAlertsEnabled {
+                    Label(
+                        L10n.tr("settings.dashboard.alertsDisabled"),
+                        systemImage: "bell.slash"
+                    )
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(6)
+        } label: {
+            Text(L10n.tr("settings.dashboard.sectionTitle"))
+        }
+    }
+
+    private var quickActionsSection: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 12) {
+                quickActionButton(
+                    title: diagnosisPrimaryActionTitle,
+                    subtitle: diagnosisPrimaryActionSubtitle,
+                    symbolName: diagnosisStore.snapshot.isRunning ? "stop.circle" : "stethoscope"
+                ) {
+                    if diagnosisStore.snapshot.isRunning {
+                        diagnosisStore.cancelDiagnosis()
+                    } else {
+                        diagnosisStore.startDiagnosis()
+                    }
+                }
+
+                quickActionButton(
+                    title: L10n.tr("settings.actions.openDiagnosis.title"),
+                    subtitle: L10n.tr("settings.actions.openDiagnosis.subtitle"),
+                    symbolName: "list.clipboard"
+                ) {
+                    navigationStore.show(.diagnosis)
+                }
+
+                quickActionButton(
+                    title: L10n.tr("settings.actions.openActivity.title"),
+                    subtitle: L10n.tr("settings.actions.openActivity.subtitle"),
+                    symbolName: "waveform.badge.magnifyingglass"
+                ) {
+                    navigationStore.show(.activity)
+                }
+
+                quickActionButton(
+                    title: L10n.tr("settings.actions.speedTest.title"),
+                    subtitle: L10n.tr("settings.actions.speedTest.subtitle"),
+                    symbolName: "gauge.with.dots.needle.33percent"
+                ) {
+                    navigationStore.show(.speedTest)
+                }
+            }
+            .padding(4)
+        } label: {
+            Text(L10n.tr("settings.actions.sectionTitle"))
+        }
+    }
+
+    private var eventSummarySection: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 12) {
+                diagnosisSummaryCard
+
+                Divider()
+
+                if recentTimelineEvents.isEmpty {
+                    Text(L10n.tr("settings.events.empty"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(recentTimelineEvents) { event in
+                        timelineSummaryRow(event)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(4)
+        } label: {
+            Text(L10n.tr("settings.events.sectionTitle"))
+        }
+    }
+
     private var diagnosisPage: some View {
         NetworkDiagnosisPageView(store: diagnosisStore) {
             navigationStore.show(.settings)
@@ -81,7 +263,8 @@ struct ConfigurationView: View {
         NetworkActivityPageView(
             throughputStore: throughputStore,
             processTrafficStore: processTrafficStore,
-            alertStore: alertStore
+            alertStore: alertStore,
+            activityTimelineStore: activityTimelineStore
         ) {
             navigationStore.show(.settings)
         }
@@ -299,19 +482,6 @@ struct ConfigurationView: View {
         }
     }
 
-    private var speedTestEntrySection: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                activityEntryButton
-                speedTestEntryButton
-                diagnosisEntryButton
-            }
-            .padding(4)
-        } label: {
-            Text(L10n.tr("settings.features.sectionTitle"))
-        }
-    }
-
     private var activitySection: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
@@ -361,6 +531,65 @@ struct ConfigurationView: View {
             .padding(4)
         } label: {
             Text(L10n.tr("settings.activity.sectionTitle"))
+        }
+    }
+
+    private var diagnosisSummaryCard: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: diagnosisSummarySymbolName)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(diagnosisSummaryTint)
+                .frame(width: 22)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(diagnosisSummaryTitle)
+                    .font(.system(size: 13, weight: .medium))
+
+                Text(diagnosisSummarySubtitle)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 12)
+
+            if let timestamp = diagnosisSummaryTimestamp {
+                Text(timestamp.formatted(date: .omitted, time: .shortened))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.55))
+        )
+    }
+
+    private func timelineSummaryRow(_ event: NetworkActivityTimelineEvent) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: event.severity.symbolName)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Color(nsColor: event.severity.tintColor))
+                .frame(width: 18, alignment: .center)
+                .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(event.headline)
+                    .font(.system(size: 13, weight: .medium))
+
+                Text(event.summary)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 12)
+
+            Text(event.occurredAt.formatted(date: .omitted, time: .shortened))
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -629,42 +858,6 @@ struct ConfigurationView: View {
         }
     }
 
-    private var speedTestEntryButton: some View {
-        featureEntryButton(
-            title: L10n.tr("settings.feature.speedTest.title"),
-            subtitle: L10n.tr("settings.feature.speedTest.subtitle")
-        ) {
-            navigationStore.show(.speedTest)
-        }
-    }
-
-    private var activityEntryButton: some View {
-        featureEntryButton(
-            title: L10n.tr("settings.feature.activity.title"),
-            subtitle: L10n.tr("settings.feature.activity.subtitle")
-        ) {
-            navigationStore.show(.activity)
-        }
-    }
-
-    private var desktopPetEntryButton: some View {
-        featureEntryButton(
-            title: L10n.tr("settings.feature.desktopPet.title"),
-            subtitle: L10n.tr("settings.feature.desktopPet.subtitle", preferences.desktopPetAsset.displayName)
-        ) {
-            navigationStore.show(.desktopPet)
-        }
-    }
-
-    private var diagnosisEntryButton: some View {
-        featureEntryButton(
-            title: L10n.tr("settings.feature.diagnosis.title"),
-            subtitle: L10n.tr("settings.feature.diagnosis.subtitle")
-        ) {
-            navigationStore.show(.diagnosis)
-        }
-    }
-
     private var desktopPetPremiumCard: some View {
         Button {
             navigationStore.show(.desktopPet)
@@ -775,13 +968,19 @@ struct ConfigurationView: View {
             )
     }
 
-    private func featureEntryButton(
+    private func quickActionButton(
         title: String,
         subtitle: String,
+        symbolName: String,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
+                Image(systemName: symbolName)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 22)
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(.system(size: 13, weight: .medium))
@@ -808,5 +1007,210 @@ struct ConfigurationView: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    private func overviewMetricCard(
+        title: String,
+        value: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            Text(value)
+                .font(.system(size: 15, weight: .semibold, design: .monospaced))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.55))
+        )
+    }
+
+    private var latestAlert: NetworkAnomaly? {
+        alertStore.recentAnomalies.first
+    }
+
+    private var latestDiagnosisResult: NetworkDiagnosisResult? {
+        diagnosisStore.recentResults.first
+    }
+
+    private var recentTimelineEvents: [NetworkActivityTimelineEvent] {
+        Array(activityTimelineStore.recentEvents.prefix(3))
+    }
+
+    private var overviewSeverity: OverviewSeverity {
+        if diagnosisStore.snapshot.isRunning {
+            return .monitoring
+        }
+
+        if latestAlert?.severity == .critical
+            || latestDiagnosisResult?.overallStatus == .failure {
+            return .critical
+        }
+
+        if latestAlert != nil
+            || latestDiagnosisResult?.overallStatus == .warning
+            || latestDiagnosisResult?.overallStatus == .skipped {
+            return .warning
+        }
+
+        return .healthy
+    }
+
+    private var overviewHeadline: String {
+        if diagnosisStore.snapshot.isRunning {
+            return diagnosisStore.snapshot.phase.title
+        }
+
+        if let latestAlert {
+            return latestAlert.headline
+        }
+
+        if let latestDiagnosisResult {
+            return latestDiagnosisResult.headline
+        }
+
+        return L10n.tr("settings.dashboard.headline.healthy")
+    }
+
+    private var overviewSummary: String {
+        if diagnosisStore.snapshot.isRunning {
+            return diagnosisStore.snapshot.statusMessage
+        }
+
+        if let latestAlert {
+            return latestAlert.summary
+        }
+
+        if let latestDiagnosisResult {
+            return latestDiagnosisResult.summary
+        }
+
+        guard throughputStore.snapshot.monitoredInterfaceName != nil else {
+            return L10n.tr("settings.dashboard.summary.waitingInterface")
+        }
+
+        return L10n.tr("settings.dashboard.summary.healthy")
+    }
+
+    private var overviewTimestamp: Date? {
+        if diagnosisStore.snapshot.isRunning {
+            return diagnosisStore.snapshot.lastUpdatedAt
+        }
+
+        if let latestAlert {
+            return latestAlert.occurredAt
+        }
+
+        if let latestDiagnosisResult {
+            return latestDiagnosisResult.finishedAt
+        }
+
+        return throughputStore.snapshot.lastUpdatedAt
+    }
+
+    private var monitoredInterfaceName: String {
+        throughputStore.snapshot.monitoredInterfaceName
+            ?? L10n.tr("settings.dashboard.metric.interfaceUnavailable")
+    }
+
+    private var currentDownloadRate: String {
+        ByteRateFormatter().string(
+            for: throughputStore.snapshot.displayedThroughput.downloadBytesPerSecond
+        )
+    }
+
+    private var currentUploadRate: String {
+        ByteRateFormatter().string(
+            for: throughputStore.snapshot.displayedThroughput.uploadBytesPerSecond
+        )
+    }
+
+    private var diagnosisPrimaryActionTitle: String {
+        diagnosisStore.snapshot.isRunning
+            ? L10n.tr("settings.actions.stopDiagnosis.title")
+            : L10n.tr("settings.actions.startDiagnosis.title")
+    }
+
+    private var diagnosisPrimaryActionSubtitle: String {
+        diagnosisStore.snapshot.isRunning
+            ? L10n.tr("settings.actions.stopDiagnosis.subtitle")
+            : L10n.tr("settings.actions.startDiagnosis.subtitle")
+    }
+
+    private var diagnosisSummaryTitle: String {
+        if diagnosisStore.snapshot.isRunning {
+            return diagnosisStore.snapshot.phase.title
+        }
+
+        if let latestDiagnosisResult {
+            return latestDiagnosisResult.headline
+        }
+
+        return L10n.tr("settings.events.diagnosis.emptyTitle")
+    }
+
+    private var diagnosisSummarySubtitle: String {
+        if diagnosisStore.snapshot.isRunning {
+            return diagnosisStore.snapshot.statusMessage
+        }
+
+        if let latestDiagnosisResult {
+            return latestDiagnosisResult.summary
+        }
+
+        return L10n.tr("settings.events.diagnosis.emptySubtitle")
+    }
+
+    private var diagnosisSummaryTimestamp: Date? {
+        if diagnosisStore.snapshot.isRunning {
+            return diagnosisStore.snapshot.lastUpdatedAt
+        }
+
+        return latestDiagnosisResult?.finishedAt
+    }
+
+    private var diagnosisSummaryTint: Color {
+        if diagnosisStore.snapshot.isRunning {
+            return Color(nsColor: .systemBlue)
+        }
+
+        guard let latestDiagnosisResult else {
+            return .secondary
+        }
+
+        switch latestDiagnosisResult.overallStatus {
+        case .success:
+            return Color(nsColor: .systemGreen)
+        case .warning, .skipped:
+            return Color(nsColor: .systemOrange)
+        case .failure:
+            return Color(nsColor: .systemRed)
+        }
+    }
+
+    private var diagnosisSummarySymbolName: String {
+        if diagnosisStore.snapshot.isRunning {
+            return diagnosisStore.snapshot.phase.symbolName
+        }
+
+        guard let latestDiagnosisResult else {
+            return "stethoscope.circle"
+        }
+
+        switch latestDiagnosisResult.overallStatus {
+        case .success:
+            return "checkmark.shield.fill"
+        case .warning, .skipped:
+            return "exclamationmark.shield.fill"
+        case .failure:
+            return "xmark.shield.fill"
+        }
     }
 }

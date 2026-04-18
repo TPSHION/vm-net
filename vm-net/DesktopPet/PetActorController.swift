@@ -11,7 +11,9 @@ import AppKit
 final class PetActorController {
 
     private enum Timing {
-        static let tickInterval: TimeInterval = 1.0 / 30.0
+        static let movingTickInterval: TimeInterval = 1.0 / 20.0
+        static let idleTickInterval: TimeInterval = 0.25
+        static let timerToleranceRatio: Double = 0.25
     }
 
     var view: NSView {
@@ -37,6 +39,8 @@ final class PetActorController {
     private var hasInitializedPlan = false
     private var isRoamingEnabled = true
     private var isManualDragActive = false
+    private var currentTickInterval: TimeInterval?
+    private var lastReportedOrigin: CGPoint?
 
     init(
         asset: DesktopPetAsset,
@@ -166,23 +170,13 @@ final class PetActorController {
     func start() {
         renderer.setAmbientInteractionEnabled(true)
         ensurePlanIfPossible()
-
-        guard tickTimer == nil else { return }
-
-        let timer = Timer(
-            timeInterval: Timing.tickInterval,
-            target: self,
-            selector: #selector(handleTickTimer),
-            userInfo: nil,
-            repeats: true
-        )
-        RunLoop.main.add(timer, forMode: .common)
-        tickTimer = timer
+        scheduleTickTimerIfNeeded(force: true)
     }
 
     func stop() {
         tickTimer?.invalidate()
         tickTimer = nil
+        currentTickInterval = nil
         movementStartDate = nil
         renderer.setAmbientInteractionEnabled(false)
     }
@@ -212,7 +206,9 @@ final class PetActorController {
                 return
             }
             self.movementStartDate = nil
-            advanceMovement(by: Timing.tickInterval)
+            advanceMovement(
+                by: currentTickInterval ?? Timing.movingTickInterval
+            )
             return
         }
 
@@ -299,11 +295,22 @@ final class PetActorController {
             }
             syncFrame()
         }
+
+        if tickTimer != nil {
+            scheduleTickTimerIfNeeded()
+        }
     }
 
     private func syncFrame() {
-        view.frame = CGRect(origin: .zero, size: asset.layout.panelSize)
-        originDidChange?(currentOrigin.rounded)
+        let desiredFrame = CGRect(origin: .zero, size: asset.layout.panelSize)
+        if view.frame != desiredFrame {
+            view.frame = desiredFrame
+        }
+
+        let roundedOrigin = currentOrigin.rounded
+        guard roundedOrigin != lastReportedOrigin else { return }
+        lastReportedOrigin = roundedOrigin
+        originDidChange?(roundedOrigin)
     }
 
     private func replaceRenderer(for asset: DesktopPetAsset) {
@@ -329,6 +336,7 @@ final class PetActorController {
         movementStartDate = nil
         stateDeadline = nil
         currentSpeed = 0
+        scheduleTickTimerIfNeeded()
 
         if state.isMoving {
             state = .idle
@@ -377,6 +385,42 @@ final class PetActorController {
         )
         renderer.applyBehaviorState(.idle, movementVector: nil)
         syncFrame()
+        scheduleTickTimerIfNeeded()
+    }
+
+    private var desiredTickInterval: TimeInterval {
+        if state.isMoving || isManualDragActive {
+            return Timing.movingTickInterval
+        }
+
+        return Timing.idleTickInterval
+    }
+
+    private func scheduleTickTimerIfNeeded(force: Bool = false) {
+        let desiredTickInterval = desiredTickInterval
+
+        if
+            !force,
+            let currentTickInterval,
+            tickTimer != nil,
+            abs(currentTickInterval - desiredTickInterval) < 0.001
+        {
+            return
+        }
+
+        tickTimer?.invalidate()
+
+        let timer = Timer(
+            timeInterval: desiredTickInterval,
+            target: self,
+            selector: #selector(handleTickTimer),
+            userInfo: nil,
+            repeats: true
+        )
+        timer.tolerance = desiredTickInterval * Timing.timerToleranceRatio
+        RunLoop.main.add(timer, forMode: .common)
+        tickTimer = timer
+        currentTickInterval = desiredTickInterval
     }
 
     private func clampedOrigin(_ origin: CGPoint) -> CGPoint {

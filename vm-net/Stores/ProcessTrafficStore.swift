@@ -12,19 +12,32 @@ import Foundation
 final class ProcessTrafficStore: ObservableObject {
 
     @Published private(set) var snapshot: ProcessTrafficSnapshot = .idle
+    @Published private(set) var isMonitoring = false
 
     private let bridge: ProcessTrafficHelperBridge
 
     init(bridge: ProcessTrafficHelperBridge = ProcessTrafficHelperBridge()) {
         self.bridge = bridge
+    }
+
+    deinit {
+        bridge.stop()
+    }
+
+    func activateMonitoring() {
+        guard !isMonitoring else { return }
+        isMonitoring = true
 
         bridge.start { [weak self] snapshot in
             self?.snapshot = snapshot
         }
     }
 
-    deinit {
+    func deactivateMonitoring() {
+        guard isMonitoring else { return }
+        isMonitoring = false
         bridge.stop()
+        snapshot = .idle
     }
 
     func reloadLocalization() {
@@ -35,7 +48,7 @@ final class ProcessTrafficStore: ObservableObject {
             localizedMessage = L10n.tr("activity.process.status.idle")
         case .streaming:
             localizedMessage = L10n.tr(
-                "activity.process.status.streaming",
+                "activity.process.status.streamingLowPower",
                 snapshot.activeProcessCount
             )
         case .unavailable:

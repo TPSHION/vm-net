@@ -423,7 +423,7 @@ struct PetBehaviorEngine {
             from: currentOrigin,
             to: migrationTarget
         )
-        let jitterMagnitude = max(
+        let jitterMagnitude: CGFloat = max(
             abs(profile.migrationHeadingJitter.lowerBound),
             abs(profile.migrationHeadingJitter.upperBound)
         )
@@ -501,11 +501,11 @@ struct PetBehaviorEngine {
             homeOrigin.y - currentOrigin.y,
             homeOrigin.x - currentOrigin.x
         )
-        let jitterMagnitude = max(
+        let jitterMagnitude: CGFloat = max(
             abs(profile.migrationHeadingJitter.lowerBound),
             abs(profile.migrationHeadingJitter.upperBound)
         ) * 0.55
-        let jitterRange = (-jitterMagnitude)...jitterMagnitude
+        let jitterRange: ClosedRange<CGFloat> = (-jitterMagnitude)...jitterMagnitude
 
         for _ in 0..<5 {
             let direction = heading + CGFloat.random(in: jitterRange)

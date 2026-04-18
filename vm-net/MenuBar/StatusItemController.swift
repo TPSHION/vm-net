@@ -12,15 +12,23 @@ import Combine
 final class StatusItemController: NSObject, NSMenuDelegate {
 
     private enum Layout {
-        static let statusItemWidth: CGFloat = 68
+        static let minimumRenderInterval: TimeInterval = 2
+    }
+
+    private struct RenderState: Equatable {
+        let uploadText: String
+        let downloadText: String
+        let toolTip: String
     }
 
     private let statusItem: NSStatusItem
-    private let contentView = StatusItemContentView()
     private let formatter = ByteRateFormatter()
     private let store: ThroughputStore
     private let preferences: AppPreferences
+    private let contentView = StatusItemContentView()
     private var cancellables: Set<AnyCancellable> = []
+    private var lastRenderState: RenderState?
+    private var lastRenderDate: Date?
 
     var openWindowHandler: (() -> Void)?
     var openNetworkActivityHandler: (() -> Void)?
@@ -30,7 +38,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         preferences: AppPreferences
     ) {
         self.statusItem = NSStatusBar.system.statusItem(
-            withLength: Layout.statusItemWidth
+            withLength: StatusItemContentView.preferredWidth
         )
         self.store = store
         self.preferences = preferences
@@ -40,7 +48,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         configureMenu()
         configureButton()
         bind()
-        render(.idle)
+        render(.idle, force: true)
     }
 
     private func configureMenu() {
@@ -64,9 +72,15 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private func configureButton() {
         guard let button = statusItem.button else { return }
 
+        statusItem.length = StatusItemContentView.preferredWidth
         button.title = ""
+        button.attributedTitle = NSAttributedString(string: "")
         button.image = nil
         button.subviews.forEach { $0.removeFromSuperview() }
+        button.imagePosition = .imageLeft
+        button.lineBreakMode = .byClipping
+
+        contentView.translatesAutoresizingMaskIntoConstraints = false
         button.addSubview(contentView)
 
         NSLayoutConstraint.activate([
@@ -89,7 +103,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             .sink { [weak self] _ in
                 self?.configureMenu()
                 if let snapshot = self?.store.snapshot {
-                    self?.render(snapshot)
+                    self?.render(snapshot, force: true)
                 }
             }
             .store(in: &cancellables)
@@ -104,19 +118,57 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         )
     }
 
-    private func render(_ snapshot: NetworkMonitorSnapshot) {
+    private func render(
+        _ snapshot: NetworkMonitorSnapshot,
+        force: Bool = false
+    ) {
         let displayed = preferences.displayMode.throughput(from: snapshot)
-
-        contentView.render(
-            uploadText:
-                "\(formatter.string(for: displayed.uploadBytesPerSecond)) ↑",
-            downloadText:
-                "\(formatter.string(for: displayed.downloadBytesPerSecond)) ↓"
-        )
-
-        statusItem.button?.toolTip = snapshot.monitoredInterfaceName.map {
+        let toolTip = snapshot.monitoredInterfaceName.map {
             L10n.tr("statusItem.tooltip.monitoringInterface", $0)
         } ?? L10n.tr("statusItem.tooltip.monitoringThroughput")
+        let renderState = RenderState(
+            uploadText: "\(formatter.string(for: displayed.uploadBytesPerSecond)) ↑",
+            downloadText: "\(formatter.string(for: displayed.downloadBytesPerSecond)) ↓",
+            toolTip: toolTip
+        )
+
+        guard shouldRender(renderState, force: force) else { return }
+
+        contentView.render(
+            uploadText: renderState.uploadText,
+            downloadText: renderState.downloadText
+        )
+        statusItem.button?.toolTip = renderState.toolTip
+        lastRenderState = renderState
+        lastRenderDate = Date()
+    }
+
+    private func shouldRender(
+        _ renderState: RenderState,
+        force: Bool
+    ) -> Bool {
+        if force {
+            return true
+        }
+
+        guard let lastRenderState else {
+            return true
+        }
+
+        guard renderState != lastRenderState else {
+            return false
+        }
+
+        if renderState.toolTip != lastRenderState.toolTip {
+            return true
+        }
+
+        guard let lastRenderDate else {
+            return true
+        }
+
+        return Date().timeIntervalSince(lastRenderDate)
+            >= Layout.minimumRenderInterval
     }
 
     @objc

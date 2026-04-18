@@ -10,14 +10,32 @@ import AppKit
 final class StatusItemContentView: NSView {
 
     private enum Layout {
-        static let viewWidth: CGFloat = 68
-        static let horizontalPadding: CGFloat = 5
+        static let viewWidth: CGFloat = 44
+        static let leadingPadding: CGFloat = 0
+        static let trailingPadding: CGFloat = 0
         static let verticalPadding: CGFloat = 1
+        static let lineSpacing: CGFloat = -1
+        static let fontSize: CGFloat = 9
     }
 
-    private let labelsStack = NSStackView()
-    private let uploadLabel = NSTextField(labelWithString: "0 B/s ↑")
-    private let downloadLabel = NSTextField(labelWithString: "0 B/s ↓")
+    static let preferredWidth = Layout.viewWidth
+
+    private var uploadText = "0 B/s ↑"
+    private var downloadText = "0 B/s ↓"
+    private lazy var textAttributes: [NSAttributedString.Key: Any] = {
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .right
+        paragraphStyle.lineBreakMode = .byClipping
+
+        return [
+            .font: NSFont.monospacedSystemFont(
+                ofSize: Layout.fontSize,
+                weight: .regular
+            ),
+            .foregroundColor: NSColor.labelColor,
+            .paragraphStyle: paragraphStyle,
+        ]
+    }()
 
     override var allowsVibrancy: Bool { true }
 
@@ -31,7 +49,6 @@ final class StatusItemContentView: NSView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         translatesAutoresizingMaskIntoConstraints = false
-        setupView()
     }
 
     required init?(coder: NSCoder) {
@@ -42,51 +59,57 @@ final class StatusItemContentView: NSView {
         uploadText: String,
         downloadText: String
     ) {
-        uploadLabel.stringValue = uploadText
-        downloadLabel.stringValue = downloadText
-        uploadLabel.alphaValue = 1
-        downloadLabel.alphaValue = 1
-    }
-
-    private func setupView() {
-        [uploadLabel, downloadLabel].forEach { label in
-            label.font = .monospacedSystemFont(ofSize: 9, weight: .regular)
-            label.textColor = .labelColor
-            label.alignment = .right
-            label.lineBreakMode = .byClipping
-            label.setContentCompressionResistancePriority(
-                .required,
-                for: .horizontal
-            )
+        guard
+            self.uploadText != uploadText
+                || self.downloadText != downloadText
+        else {
+            return
         }
 
-        labelsStack.orientation = .vertical
-        labelsStack.alignment = .trailing
-        labelsStack.distribution = .fillEqually
-        labelsStack.spacing = -1
-        labelsStack.translatesAutoresizingMaskIntoConstraints = false
-        labelsStack.addArrangedSubview(uploadLabel)
-        labelsStack.addArrangedSubview(downloadLabel)
-
-        addSubview(labelsStack)
-
-        NSLayoutConstraint.activate([
-            labelsStack.leadingAnchor.constraint(
-                equalTo: leadingAnchor,
-                constant: Layout.horizontalPadding
-            ),
-            labelsStack.trailingAnchor.constraint(
-                equalTo: trailingAnchor,
-                constant: -Layout.horizontalPadding
-            ),
-            labelsStack.topAnchor.constraint(
-                equalTo: topAnchor,
-                constant: Layout.verticalPadding
-            ),
-            labelsStack.bottomAnchor.constraint(
-                equalTo: bottomAnchor,
-                constant: -Layout.verticalPadding
-            ),
-        ])
+        self.uploadText = uploadText
+        self.downloadText = downloadText
+        needsDisplay = true
     }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+
+        let bounds = CGRect(
+            x: self.bounds.minX + Layout.leadingPadding,
+            y: self.bounds.minY + Layout.verticalPadding,
+            width: max(
+                self.bounds.width - Layout.leadingPadding - Layout.trailingPadding,
+                0
+            ),
+            height: max(self.bounds.height - (Layout.verticalPadding * 2), 0)
+        )
+        let availableHeight = max(bounds.height, 0)
+        let lineHeight = max(
+            (availableHeight - Layout.lineSpacing) / 2,
+            0
+        )
+
+        let uploadRect = CGRect(
+            x: bounds.minX,
+            y: bounds.minY + lineHeight + Layout.lineSpacing,
+            width: bounds.width,
+            height: lineHeight
+        )
+        let downloadRect = CGRect(
+            x: bounds.minX,
+            y: bounds.minY,
+            width: bounds.width,
+            height: lineHeight
+        )
+
+        uploadText.draw(
+            in: uploadRect,
+            withAttributes: textAttributes
+        )
+        downloadText.draw(
+            in: downloadRect,
+            withAttributes: textAttributes
+        )
+    }
+
 }

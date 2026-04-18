@@ -55,7 +55,7 @@ struct ProcessTrafficSnapshot: Equatable {
         ProcessTrafficSnapshot(
             phase: .streaming,
             statusMessage: L10n.tr(
-                "activity.process.status.streaming",
+                "activity.process.status.streamingLowPower",
                 processes.count
             ),
             processes: processes,

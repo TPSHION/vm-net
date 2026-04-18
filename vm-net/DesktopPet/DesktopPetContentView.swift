@@ -27,6 +27,10 @@ final class DesktopPetContentView: NSView {
         static let ambientResumeDelay: TimeInterval = 2.4
     }
 
+    private enum Rendering {
+        static let cappedFramesPerSecond = 12
+    }
+
     private(set) var asset: DesktopPetAsset
 
     private let backdropView = NSView()
@@ -71,11 +75,13 @@ final class DesktopPetContentView: NSView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         enforceTransparentRendering()
+        applyRenderingConfiguration()
     }
 
     override func layout() {
         super.layout()
         enforceTransparentRendering()
+        applyRenderingConfiguration()
     }
 
     init(frame frameRect: NSRect, asset: DesktopPetAsset) {
@@ -239,6 +245,9 @@ final class DesktopPetContentView: NSView {
         riveView.wantsLayer = true
         riveView.layer?.backgroundColor = NSColor.clear.cgColor
         riveView.layer?.isOpaque = false
+        riveView.setPreferredFramesPerSecond(
+            preferredFramesPerSecond: Rendering.cappedFramesPerSecond
+        )
 
         addSubview(riveView)
 
@@ -259,6 +268,7 @@ final class DesktopPetContentView: NSView {
 
         applyLayout()
         enforceTransparentRendering()
+        applyRenderingConfiguration()
     }
 
     private func tearDownRiveView() {
@@ -329,6 +339,12 @@ final class DesktopPetContentView: NSView {
         for subview in view.subviews {
             clearBackgroundsRecursively(in: subview)
         }
+    }
+
+    private func applyRenderingConfiguration() {
+        riveView?.setPreferredFramesPerSecond(
+            preferredFramesPerSecond: Rendering.cappedFramesPerSecond
+        )
     }
 
     private func playSyntheticInteraction(path: [CGPoint]) {

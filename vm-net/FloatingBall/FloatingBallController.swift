@@ -14,6 +14,12 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenu
     private enum Layout {
         static let panelSize = NSSize(width: 88, height: 46)
         static let screenPadding: CGFloat = 24
+        static let minimumRenderInterval: TimeInterval = 2
+    }
+
+    private struct RenderState: Equatable {
+        let uploadText: String
+        let downloadText: String
     }
 
     private let store: ThroughputStore
@@ -23,6 +29,8 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenu
         frame: NSRect(origin: .zero, size: Layout.panelSize)
     )
     private var cancellables: Set<AnyCancellable> = []
+    private var lastRenderState: RenderState?
+    private var lastRenderDate: Date?
 
     var openWindowHandler: (() -> Void)?
     var openNetworkActivityHandler: (() -> Void)?
@@ -55,7 +63,7 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenu
         configurePanel(panel)
         applyAppearance()
         bind()
-        render(.idle)
+        render(.idle, force: true)
     }
 
     @available(*, unavailable)
@@ -154,13 +162,24 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenu
             .store(in: &cancellables)
     }
 
-    private func render(_ snapshot: NetworkMonitorSnapshot) {
+    private func render(
+        _ snapshot: NetworkMonitorSnapshot,
+        force: Bool = false
+    ) {
         let displayed = preferences.displayMode.throughput(from: snapshot)
-
-        contentView.render(
+        let renderState = RenderState(
             uploadText: formatter.string(for: displayed.uploadBytesPerSecond),
             downloadText: formatter.string(for: displayed.downloadBytesPerSecond)
         )
+
+        guard shouldRender(renderState, force: force) else { return }
+
+        contentView.render(
+            uploadText: renderState.uploadText,
+            downloadText: renderState.downloadText
+        )
+        lastRenderState = renderState
+        lastRenderDate = Date()
     }
 
     private func applyAppearance() {
@@ -198,6 +217,30 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenu
             openWindowSelector: #selector(handleOpenWindow),
             openActivitySelector: #selector(handleOpenNetworkActivity)
         )
+    }
+
+    private func shouldRender(
+        _ renderState: RenderState,
+        force: Bool
+    ) -> Bool {
+        if force {
+            return true
+        }
+
+        guard let lastRenderState else {
+            return true
+        }
+
+        guard renderState != lastRenderState else {
+            return false
+        }
+
+        guard let lastRenderDate else {
+            return true
+        }
+
+        return Date().timeIntervalSince(lastRenderDate)
+            >= Layout.minimumRenderInterval
     }
 
     private func persistWindowPlacement() {
