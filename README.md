@@ -2,8 +2,6 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-![vm-net logo](img/vm-net-logo.png)
-
 `vm-net` is a macOS menu bar network utility focused on always-on visibility and fast troubleshooting. It combines real-time throughput monitoring, a draggable floating capsule, per-process activity inspection, built-in speed tests, network diagnosis, and an optional desktop pet overlay.
 
 ## Highlights

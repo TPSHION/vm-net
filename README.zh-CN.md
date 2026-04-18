@@ -2,8 +2,6 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-![vm-net logo](img/vm-net-logo.png)
-
 `vm-net` 是一个面向 macOS 的菜单栏网络工具，重点放在常驻可观测性和快速排障上。它把实时网速监控、可拖拽悬浮胶囊、进程级网络活动分析、内置测速、网络诊断，以及可选的桌面宠物叠层整合到了同一个应用里。
 
 ## 功能亮点
