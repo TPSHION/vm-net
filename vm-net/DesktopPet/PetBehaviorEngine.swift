@@ -423,7 +423,7 @@ struct PetBehaviorEngine {
             from: currentOrigin,
             to: migrationTarget
         )
-        let jitterMagnitude = max(
+        let jitterMagnitude: CGFloat = max(
             abs(profile.migrationHeadingJitter.lowerBound),
             abs(profile.migrationHeadingJitter.upperBound)
         )
@@ -432,8 +432,12 @@ struct PetBehaviorEngine {
 
         for _ in 0..<Tuning.stepCandidateCount {
             let baseHeading = curvedHeading(toward: targetHeading)
+            let lowerHeadingJitter = -jitterMagnitude * CGFloat(0.8)
+            let upperHeadingJitter = jitterMagnitude * CGFloat(0.8)
+            let headingRange: ClosedRange<CGFloat> =
+                lowerHeadingJitter...upperHeadingJitter
             let direction = baseHeading + CGFloat.random(
-                in: (-jitterMagnitude * 0.8)...(jitterMagnitude * 0.8)
+                in: headingRange
             )
             let stepDistance = CGFloat.random(in: profile.wanderStepDistance)
             let candidate = clamp(
@@ -501,11 +505,12 @@ struct PetBehaviorEngine {
             homeOrigin.y - currentOrigin.y,
             homeOrigin.x - currentOrigin.x
         )
-        let jitterMagnitude = max(
+        let jitterMagnitude: CGFloat = max(
             abs(profile.migrationHeadingJitter.lowerBound),
             abs(profile.migrationHeadingJitter.upperBound)
-        ) * 0.55
-        let jitterRange = (-jitterMagnitude)...jitterMagnitude
+        ) * CGFloat(0.55)
+        let jitterRange: ClosedRange<CGFloat> =
+            (-jitterMagnitude)...jitterMagnitude
 
         for _ in 0..<5 {
             let direction = heading + CGFloat.random(in: jitterRange)
