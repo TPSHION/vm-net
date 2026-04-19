@@ -7,7 +7,9 @@
 
 import AppKit
 import Carbon.HIToolbox
+import ImageIO
 import ScreenCaptureKit
+import UniformTypeIdentifiers
 
 @MainActor
 final class RegionScreenshotController: ObservableObject {
@@ -24,6 +26,8 @@ final class RegionScreenshotController: ObservableObject {
     @Published private(set) var lastCaptureURL: URL?
 
     private var selectionSession: RegionCaptureOverlaySession?
+    private var previousFrontmostApplication: NSRunningApplication?
+    private let previewController = RegionCapturePreviewController()
 
     var supportsRegionCapture: Bool {
         if #available(macOS 14.0, *) {
@@ -107,17 +111,21 @@ final class RegionScreenshotController: ObservableObject {
     }
 
     private func startSelection() {
+        captureCurrentFrontmostApplication()
+
         let session = RegionCaptureOverlaySession(
             screens: NSScreen.screens,
-            onComplete: { [weak self] selection in
+            onCommit: { [weak self] selection, action in
                 guard let self else { return }
                 self.selectionSession = nil
+                self.restorePreviousFrontmostApplication()
                 Task {
-                    await self.captureSelection(selection)
+                    await self.captureSelection(selection, action: action)
                 }
             },
             onCancel: { [weak self] in
                 self?.selectionSession = nil
+                self?.restorePreviousFrontmostApplication()
             }
         )
 
@@ -126,17 +134,54 @@ final class RegionScreenshotController: ObservableObject {
         session.begin()
     }
 
-    private func captureSelection(_ selection: RegionSelection) async {
+    private func captureSelection(
+        _ selection: RegionSelection,
+        action: RegionCaptureCommitAction
+    ) async {
+        let request = captureRequest(for: selection)
+
         do {
-            await Task.yield()
-            let image = try await captureImage(for: selection)
-            let url = try saveImage(image)
-            copyImageToPasteboard(image)
-            lastCaptureURL = url
+            let result = try await Task.detached(priority: .userInitiated) {
+                try await RegionScreenshotPipeline.capture(
+                    request,
+                    action: action
+                )
+            }.value
+
             needsPermission = false
-            showStatus(
-                L10n.tr("screenshot.status.saved", url.lastPathComponent),
-                kind: .success
+            switch action {
+            case .copyToClipboard:
+                copyImageToPasteboard(result.pngData)
+                lastCaptureURL = nil
+                showStatus(
+                    L10n.tr("screenshot.status.copied"),
+                    kind: .success
+                )
+
+            case .saveToFile:
+                guard let fileURL = result.fileURL else {
+                    showStatus(
+                        RegionScreenshotError.saveFailed.localizedDescription,
+                        kind: .error
+                    )
+                    return
+                }
+
+                lastCaptureURL = fileURL
+                showStatus(
+                    L10n.tr("screenshot.status.saved", fileURL.lastPathComponent),
+                    kind: .success
+                )
+            }
+
+            previewController.show(
+                pngData: result.pngData,
+                pixelSize: NSSize(
+                    width: result.pixelWidth,
+                    height: result.pixelHeight
+                ),
+                fileURL: result.fileURL,
+                on: selection.originScreen
             )
         } catch let error as RegionScreenshotError {
             showStatus(error.localizedDescription, kind: .error)
@@ -153,12 +198,206 @@ final class RegionScreenshotController: ObservableObject {
         statusKind = kind
     }
 
-    private func saveImage(_ image: CGImage) throws -> URL {
-        let representation = NSBitmapImageRep(cgImage: image)
-        guard let data = representation.representation(using: .png, properties: [:]) else {
+    private func copyImageToPasteboard(_ pngData: Data) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setData(pngData, forType: .png)
+    }
+
+    private func screenContainingPoint(_ point: CGPoint) -> NSScreen? {
+        NSScreen.screens.first { screen in
+            screen.frame.contains(point)
+        }
+    }
+
+    private func captureRequest(for selection: RegionSelection) -> RegionCaptureRequest {
+        let activeScreen = screenContainingPoint(selection.rect.origin)
+            ?? selection.originScreen
+
+        return RegionCaptureRequest(
+            rect: selection.rect,
+            displayID: activeScreen.cgDisplayID,
+            screenFrame: activeScreen.frame
+        )
+    }
+
+    private func captureCurrentFrontmostApplication() {
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+        guard
+            let frontmostApplication = NSWorkspace.shared.frontmostApplication,
+            frontmostApplication.processIdentifier != currentPID
+        else {
+            previousFrontmostApplication = nil
+            return
+        }
+
+        previousFrontmostApplication = frontmostApplication
+    }
+
+    private func restorePreviousFrontmostApplication() {
+        guard let previousFrontmostApplication else { return }
+        self.previousFrontmostApplication = nil
+
+        guard !previousFrontmostApplication.isTerminated else { return }
+
+        DispatchQueue.main.async {
+            previousFrontmostApplication.activate(options: [.activateIgnoringOtherApps])
+        }
+    }
+}
+
+private struct RegionCaptureRequest: Sendable {
+    let rect: CGRect
+    let displayID: CGDirectDisplayID?
+    let screenFrame: CGRect
+}
+
+private struct RegionCaptureResult: Sendable {
+    let pngData: Data
+    let fileURL: URL?
+    let pixelWidth: Int
+    let pixelHeight: Int
+}
+
+private enum RegionScreenshotPipeline {
+
+    static func capture(
+        _ request: RegionCaptureRequest,
+        action: RegionCaptureCommitAction
+    ) async throws -> RegionCaptureResult {
+        let image = try await captureImage(for: request)
+        let pngData = try pngData(from: image)
+        let fileURL: URL?
+
+        switch action {
+        case .copyToClipboard:
+            fileURL = nil
+        case .saveToFile:
+            fileURL = try saveImageData(pngData)
+        }
+
+        return RegionCaptureResult(
+            pngData: pngData,
+            fileURL: fileURL,
+            pixelWidth: image.width,
+            pixelHeight: image.height
+        )
+    }
+
+    private static func captureImage(
+        for request: RegionCaptureRequest
+    ) async throws -> CGImage {
+        guard #available(macOS 14.0, *) else {
+            throw RegionScreenshotError.unsupported
+        }
+
+        if #available(macOS 15.2, *) {
+            return try await SCScreenshotManager.captureImage(in: request.rect)
+        }
+
+        let shareableContent = try await loadShareableContent()
+        guard
+            let displayID = request.displayID,
+            let display = shareableContent.displays.first(where: {
+                $0.displayID == displayID
+            })
+        else {
+            throw RegionScreenshotError.displayUnavailable
+        }
+
+        let excludedApplications = shareableContent.applications.filter {
+            $0.processID == ProcessInfo.processInfo.processIdentifier
+        }
+        let filter = SCContentFilter(
+            display: display,
+            excludingApplications: excludedApplications,
+            exceptingWindows: []
+        )
+
+        if #available(macOS 14.2, *) {
+            filter.includeMenuBar = true
+        }
+
+        let configuration = SCStreamConfiguration()
+        configuration.showsCursor = false
+        configuration.scalesToFit = false
+        configuration.colorSpaceName = CGColorSpace.sRGB
+        configuration.sourceRect = adjustRectForScreen(
+            request.rect,
+            screenFrame: request.screenFrame
+        )
+        configuration.width = max(
+            1,
+            Int(configuration.sourceRect.width * CGFloat(filter.pointPixelScale))
+        )
+        configuration.height = max(
+            1,
+            Int(configuration.sourceRect.height * CGFloat(filter.pointPixelScale))
+        )
+
+        return try await SCScreenshotManager.captureImage(
+            contentFilter: filter,
+            configuration: configuration
+        )
+    }
+
+    @available(macOS 14.0, *)
+    private static func loadShareableContent() async throws -> SCShareableContent {
+        try await withCheckedThrowingContinuation { continuation in
+            SCShareableContent.getExcludingDesktopWindows(
+                false,
+                onScreenWindowsOnly: true
+            ) { shareableContent, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+
+                guard let shareableContent else {
+                    continuation.resume(
+                        throwing: RegionScreenshotError.displayUnavailable
+                    )
+                    return
+                }
+
+                continuation.resume(returning: shareableContent)
+            }
+        }
+    }
+
+    private static func adjustRectForScreen(
+        _ rect: CGRect,
+        screenFrame: CGRect
+    ) -> CGRect {
+        let screenHeight = screenFrame.height + screenFrame.minY
+        return CGRect(
+            x: rect.origin.x - screenFrame.minX,
+            y: screenHeight - rect.origin.y - rect.height,
+            width: rect.width,
+            height: rect.height
+        )
+    }
+
+    private static func pngData(from image: CGImage) throws -> Data {
+        let mutableData = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(
+            mutableData,
+            UTType.png.identifier as CFString,
+            1,
+            nil
+        ) else {
             throw RegionScreenshotError.saveFailed
         }
 
+        CGImageDestinationAddImage(destination, image, nil)
+        guard CGImageDestinationFinalize(destination) else {
+            throw RegionScreenshotError.saveFailed
+        }
+
+        return mutableData as Data
+    }
+
+    private static func saveImageData(_ pngData: Data) throws -> URL {
         let directory = FileManager.default.urls(
             for: .picturesDirectory,
             in: .userDomainMask
@@ -184,123 +423,11 @@ final class RegionScreenshotController: ObservableObject {
         let url = screenshotsDirectory.appendingPathComponent(fileName)
 
         do {
-            try data.write(to: url, options: .atomic)
+            try pngData.write(to: url, options: .atomic)
             return url
         } catch {
             throw RegionScreenshotError.saveFailed
         }
-    }
-
-    private func copyImageToPasteboard(_ image: CGImage) {
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        let nsImage = NSImage(
-            cgImage: image,
-            size: NSSize(width: image.width, height: image.height)
-        )
-        pasteboard.writeObjects([nsImage])
-    }
-
-    private func captureImage(
-        for selection: RegionSelection
-    ) async throws -> CGImage {
-        guard #available(macOS 14.0, *) else {
-            throw RegionScreenshotError.unsupported
-        }
-
-        if #available(macOS 15.2, *) {
-            return try await SCScreenshotManager.captureImage(in: selection.rect)
-        }
-
-        let shareableContent = try await loadShareableContent()
-        let activeScreen = screenContainingPoint(selection.rect.origin)
-            ?? selection.originScreen
-        guard
-            let displayID = activeScreen.cgDisplayID,
-            let display = shareableContent.displays.first(where: {
-                $0.displayID == displayID
-            })
-        else {
-            throw RegionScreenshotError.displayUnavailable
-        }
-
-        let excludedApplications = shareableContent.applications.filter {
-            $0.processID == NSRunningApplication.current.processIdentifier
-        }
-        let filter = SCContentFilter(
-            display: display,
-            excludingApplications: excludedApplications,
-            exceptingWindows: []
-        )
-
-        if #available(macOS 14.2, *) {
-            filter.includeMenuBar = true
-        }
-
-        let configuration = SCStreamConfiguration()
-        configuration.showsCursor = false
-        configuration.scalesToFit = false
-        configuration.colorSpaceName = CGColorSpace.sRGB
-        configuration.sourceRect = adjustRectForScreen(
-            selection.rect,
-            for: activeScreen
-        )
-        configuration.width = max(
-            1,
-            Int(configuration.sourceRect.width * CGFloat(filter.pointPixelScale))
-        )
-        configuration.height = max(
-            1,
-            Int(configuration.sourceRect.height * CGFloat(filter.pointPixelScale))
-        )
-
-        return try await SCScreenshotManager.captureImage(
-            contentFilter: filter,
-            configuration: configuration
-        )
-    }
-
-    @available(macOS 14.0, *)
-    private func loadShareableContent() async throws -> SCShareableContent {
-        try await withCheckedThrowingContinuation { continuation in
-            SCShareableContent.getExcludingDesktopWindows(
-                false,
-                onScreenWindowsOnly: true
-            ) { shareableContent, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-
-                guard let shareableContent else {
-                    continuation.resume(
-                        throwing: RegionScreenshotError.displayUnavailable
-                    )
-                    return
-                }
-
-                continuation.resume(returning: shareableContent)
-            }
-        }
-    }
-
-    private func screenContainingPoint(_ point: CGPoint) -> NSScreen? {
-        NSScreen.screens.first { screen in
-            screen.frame.contains(point)
-        }
-    }
-
-    private func adjustRectForScreen(
-        _ rect: CGRect,
-        for screen: NSScreen
-    ) -> CGRect {
-        let screenHeight = screen.frame.height + screen.frame.minY
-        return CGRect(
-            x: rect.origin.x - screen.frame.minX,
-            y: screenHeight - rect.origin.y - rect.height,
-            width: rect.width,
-            height: rect.height
-        )
     }
 }
 
