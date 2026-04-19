@@ -31,6 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
     private let speedTestStore = SpeedTestStore()
     private let diagnosisStore = NetworkDiagnosisStore()
+    private let regionScreenshotController = RegionScreenshotController()
+    private let screenshotHotKeyController = GlobalHotKeyController()
     private var cancellables = Set<AnyCancellable>()
     private var startupOverlayWorkItem: DispatchWorkItem?
     private var statusItemController: StatusItemController?
@@ -47,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         activityTimelineStore: activityTimelineStore,
         speedTestStore: speedTestStore,
         diagnosisStore: diagnosisStore,
+        regionScreenshotController: regionScreenshotController,
         onFloatingBallToggle: { [weak self] isEnabled in
             self?.setFloatingBallEnabled(isEnabled)
         },
@@ -58,6 +61,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         },
         onDesktopPetAssetApply: { [weak self] assetID in
             self?.applyDesktopPetAsset(assetID)
+        },
+        onRegionScreenshotRequest: { [weak self] in
+            self?.beginRegionScreenshotCapture()
         }
     )
 
@@ -159,6 +165,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItemController.openNetworkActivityHandler = { [weak self] in
             self?.showMainWindow(page: .activity)
         }
+        statusItemController.captureRegionHandler = { [weak self] in
+            self?.beginRegionScreenshotCapture()
+        }
 
         self.statusItemController = statusItemController
     }
@@ -178,6 +187,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         floatingBallController.openNetworkActivityHandler = { [weak self] in
             self?.showMainWindow(page: .activity)
+        }
+        floatingBallController.captureRegionHandler = { [weak self] in
+            self?.beginRegionScreenshotCapture()
         }
         floatingBallController.frameChangeHandler = { [weak self] frame, screen in
             self?.updateDesktopPetAttachment(anchorFrame: frame, screen: screen)
@@ -272,6 +284,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func bindPreferences() {
+        screenshotHotKeyController.onPress = { [weak self] in
+            self?.beginRegionScreenshotCapture()
+        }
+
+        let shortcutStatus = screenshotHotKeyController.updateShortcut(
+            preferences.screenshotShortcut
+        )
+        if shortcutStatus != noErr {
+            regionScreenshotController.showShortcutRegistrationFailed()
+        }
+
         preferences.$desktopPetAssetID
             .dropFirst()
             .removeDuplicates()
@@ -302,6 +325,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.processTrafficStore.reloadLocalization()
                 self.alertStore.reloadLocalization()
                 self.activityTimelineStore.reloadLocalization()
+                self.regionScreenshotController.clearStatus()
+            }
+            .store(in: &cancellables)
+
+        preferences.$screenshotShortcut
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] shortcut in
+                guard let self else { return }
+                let status = self.screenshotHotKeyController.updateShortcut(shortcut)
+                if status != noErr {
+                    self.regionScreenshotController.showShortcutRegistrationFailed()
+                } else {
+                    self.regionScreenshotController.clearStatus()
+                }
             }
             .store(in: &cancellables)
 
@@ -319,6 +357,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         processTrafficStore.reloadLocalization()
         alertStore.reloadLocalization()
         activityTimelineStore.reloadLocalization()
+        regionScreenshotController.clearStatus()
+    }
+
+    private func beginRegionScreenshotCapture() {
+        regionScreenshotController.beginCapture()
     }
 
     private func synchronizeDesktopPetAccess() {

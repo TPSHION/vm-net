@@ -66,10 +66,12 @@ struct ConfigurationView: View {
     @ObservedObject var activityTimelineStore: ActivityTimelineStore
     @ObservedObject var speedTestStore: SpeedTestStore
     @ObservedObject var diagnosisStore: NetworkDiagnosisStore
+    @ObservedObject var regionScreenshotController: RegionScreenshotController
     let onFloatingBallToggle: (Bool) -> Void
     let onDesktopPetToggle: (Bool) -> Void
     let onDesktopPetRoamingToggle: (Bool) -> Void
     let onDesktopPetAssetApply: (DesktopPetAssetID) -> Void
+    let onRegionScreenshotRequest: () -> Void
     @StateObject private var appStoreUpdateStore = AppStoreUpdateStore()
 
     var body: some View {
@@ -118,6 +120,8 @@ struct ConfigurationView: View {
         switch navigationStore.page {
         case .overview:
             overviewPage
+        case .quickFeatures:
+            quickFeaturesPage
         case .activity:
             activityPage
         case .diagnosis:
@@ -157,6 +161,22 @@ struct ConfigurationView: View {
                     launchSection
                     presentationSection
                     activitySection
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 12)
+            }
+            .vmNetScrollBarsHidden()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var quickFeaturesPage: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            quickFeaturesHeaderSection
+
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 18) {
+                    shortcutsSection
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 12)
@@ -365,6 +385,13 @@ struct ConfigurationView: View {
                     .foregroundStyle(updateMessageColor)
             }
         }
+    }
+
+    private var quickFeaturesHeaderSection: some View {
+        pageTitleBlock(
+            title: L10n.tr("navigation.quickFeatures.title"),
+            subtitle: L10n.tr("navigation.quickFeatures.subtitle")
+        )
     }
 
     private func pageTitleBlock(
@@ -602,6 +629,69 @@ struct ConfigurationView: View {
         }
     }
 
+    private var shortcutsSection: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L10n.tr("settings.shortcuts.screenshot.title"))
+                        .font(.system(size: 13, weight: .medium))
+
+                    Text(L10n.tr("settings.shortcuts.screenshot.subtitle"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                ViewThatFits(in: .horizontal) {
+                    shortcutActionRow
+                    shortcutActionColumn
+                }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text(L10n.tr("settings.shortcuts.screenshot.shortcut"))
+                            .font(.system(size: 13, weight: .medium))
+
+                        Spacer(minLength: 12)
+
+                        KeyboardShortcutRecorder(shortcut: $preferences.screenshotShortcut)
+                    }
+
+                    Text(L10n.tr("settings.shortcuts.screenshot.shortcutHint"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+
+                    Button(L10n.tr("settings.shortcuts.screenshot.restoreDefault")) {
+                        preferences.screenshotShortcut = .defaultRegionScreenshot
+                    }
+                    .controlSize(.small)
+                }
+
+                if regionScreenshotController.needsPermission {
+                    Divider()
+
+                    ViewThatFits(in: .horizontal) {
+                        shortcutPermissionRow
+                        shortcutPermissionColumn
+                    }
+                }
+
+                if let statusMessage = regionScreenshotController.statusMessage {
+                    Text(statusMessage)
+                        .font(.system(size: 12))
+                        .foregroundStyle(screenshotStatusColor)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(4)
+        } label: {
+            Text(L10n.tr("settings.features.sectionTitle"))
+        }
+    }
+
     private var diagnosisSummaryCard: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: diagnosisSummarySymbolName)
@@ -685,6 +775,17 @@ struct ConfigurationView: View {
 
     private var backgroundTransparencySummary: String {
         "\(Int(round(preferences.floatingBallBackgroundTransparency * 100)))%"
+    }
+
+    private var screenshotStatusColor: Color {
+        switch regionScreenshotController.statusKind {
+        case .neutral:
+            return .secondary
+        case .success:
+            return Color(nsColor: .systemGreen)
+        case .error:
+            return Color(nsColor: .systemRed)
+        }
     }
 
     private var launchAtLoginBinding: Binding<Bool> {
@@ -869,6 +970,62 @@ struct ConfigurationView: View {
 
             Button(L10n.tr("settings.launch.openSystemSettings")) {
                 launchAtLoginManager.openSystemSettings()
+            }
+            .controlSize(.small)
+        }
+    }
+
+    private var shortcutActionRow: some View {
+        HStack(spacing: 12) {
+            Text(L10n.tr("settings.shortcuts.screenshot.manualHint"))
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 12)
+
+            Button(L10n.tr("settings.shortcuts.screenshot.start")) {
+                onRegionScreenshotRequest()
+            }
+            .controlSize(.small)
+        }
+    }
+
+    private var shortcutActionColumn: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.tr("settings.shortcuts.screenshot.manualHint"))
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+
+            Button(L10n.tr("settings.shortcuts.screenshot.start")) {
+                onRegionScreenshotRequest()
+            }
+            .controlSize(.small)
+        }
+    }
+
+    private var shortcutPermissionRow: some View {
+        HStack(spacing: 12) {
+            Text(L10n.tr("settings.shortcuts.screenshot.permissionHint"))
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 12)
+
+            Button(L10n.tr("settings.shortcuts.screenshot.openSystemSettings")) {
+                regionScreenshotController.openSystemSettings()
+            }
+            .controlSize(.small)
+        }
+    }
+
+    private var shortcutPermissionColumn: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.tr("settings.shortcuts.screenshot.permissionHint"))
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+
+            Button(L10n.tr("settings.shortcuts.screenshot.openSystemSettings")) {
+                regionScreenshotController.openSystemSettings()
             }
             .controlSize(.small)
         }

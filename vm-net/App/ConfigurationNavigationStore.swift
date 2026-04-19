@@ -36,6 +36,7 @@ enum ConfigurationPageGroup: Int, CaseIterable, Identifiable {
 
 enum ConfigurationPage: String, CaseIterable, Hashable, Identifiable {
     case overview
+    case quickFeatures
     case activity
     case diagnosis
     case speedTest
@@ -48,7 +49,7 @@ enum ConfigurationPage: String, CaseIterable, Hashable, Identifiable {
         switch self {
         case .overview:
             return .workspace
-        case .activity, .diagnosis, .speedTest:
+        case .quickFeatures, .activity, .diagnosis, .speedTest:
             return .tools
         case .desktopPet:
             return .desktop
@@ -61,6 +62,8 @@ enum ConfigurationPage: String, CaseIterable, Hashable, Identifiable {
         switch self {
         case .overview:
             return L10n.tr("navigation.overview.title")
+        case .quickFeatures:
+            return L10n.tr("navigation.quickFeatures.title")
         case .activity:
             return L10n.tr("navigation.activity.title")
         case .diagnosis:
@@ -78,6 +81,8 @@ enum ConfigurationPage: String, CaseIterable, Hashable, Identifiable {
         switch self {
         case .overview:
             return L10n.tr("navigation.overview.subtitle")
+        case .quickFeatures:
+            return L10n.tr("navigation.quickFeatures.subtitle")
         case .activity:
             return L10n.tr("navigation.activity.subtitle")
         case .diagnosis:
@@ -95,6 +100,8 @@ enum ConfigurationPage: String, CaseIterable, Hashable, Identifiable {
         switch self {
         case .overview:
             return "square.grid.2x2"
+        case .quickFeatures:
+            return "camera.viewfinder"
         case .activity:
             return "waveform.badge.magnifyingglass"
         case .diagnosis:

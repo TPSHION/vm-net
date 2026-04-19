@@ -70,10 +70,12 @@ final class ConfigurationWindowController: NSWindowController {
         activityTimelineStore: ActivityTimelineStore,
         speedTestStore: SpeedTestStore,
         diagnosisStore: NetworkDiagnosisStore,
+        regionScreenshotController: RegionScreenshotController,
         onFloatingBallToggle: @escaping (Bool) -> Void,
         onDesktopPetToggle: @escaping (Bool) -> Void,
         onDesktopPetRoamingToggle: @escaping (Bool) -> Void,
-        onDesktopPetAssetApply: @escaping (DesktopPetAssetID) -> Void
+        onDesktopPetAssetApply: @escaping (DesktopPetAssetID) -> Void,
+        onRegionScreenshotRequest: @escaping () -> Void
     ) {
         let rootView = ConfigurationView(
             preferences: preferences,
@@ -86,10 +88,12 @@ final class ConfigurationWindowController: NSWindowController {
             activityTimelineStore: activityTimelineStore,
             speedTestStore: speedTestStore,
             diagnosisStore: diagnosisStore,
+            regionScreenshotController: regionScreenshotController,
             onFloatingBallToggle: onFloatingBallToggle,
             onDesktopPetToggle: onDesktopPetToggle,
             onDesktopPetRoamingToggle: onDesktopPetRoamingToggle,
-            onDesktopPetAssetApply: onDesktopPetAssetApply
+            onDesktopPetAssetApply: onDesktopPetAssetApply,
+            onRegionScreenshotRequest: onRegionScreenshotRequest
         )
         let hostingController = ScrollBarHidingHostingController(rootView: rootView)
         self.hostingController = hostingController

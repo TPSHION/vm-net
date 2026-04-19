@@ -6,10 +6,11 @@
 //
 
 import AppKit
+import CoreGraphics
 
 extension NSScreen {
 
-    var displayIdentifier: String? {
+    var cgDisplayID: CGDirectDisplayID? {
         guard
             let screenNumber = deviceDescription[
                 NSDeviceDescriptionKey("NSScreenNumber")
@@ -18,6 +19,10 @@ extension NSScreen {
             return nil
         }
 
-        return screenNumber.stringValue
+        return CGDirectDisplayID(screenNumber.uint32Value)
+    }
+
+    var displayIdentifier: String? {
+        cgDisplayID.map { String($0) }
     }
 }

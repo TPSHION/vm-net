@@ -23,6 +23,8 @@
 "navigation.group.preferences" = "Preferences";
 "navigation.overview.title" = "Overview";
 "navigation.overview.subtitle" = "Alerts, event summaries, and quick actions for what is happening now.";
+"navigation.quickFeatures.title" = "Quick Features";
+"navigation.quickFeatures.subtitle" = "Collect lightweight tools such as region capture here so future quick utilities have a clear home.";
 "navigation.activity.title" = "Network Activity";
 "navigation.activity.subtitle" = "Process rankings, alerts, and the live network timeline.";
 "navigation.diagnosis.title" = "Network Diagnosis";
@@ -36,6 +38,7 @@
 
 "menu.openWindow" = "Open vm-net";
 "menu.openActivity" = "Open Network Activity";
+"menu.captureRegion" = "Capture Region";
 "menu.quit" = "Quit";
 
 "statusItem.tooltip.monitoringInterface" = "Monitoring %@";
@@ -60,6 +63,18 @@
 "settings.launch.openSystemSettings" = "Open System Settings";
 "settings.language.title" = "App Language";
 "settings.language.description" = "Applies to the window, menus, and future status messages.";
+"settings.shortcuts.sectionTitle" = "Quick Features";
+"settings.shortcuts.screenshot.title" = "Region Screenshot";
+"settings.shortcuts.screenshot.subtitle" = "Drag to select the part of the screen you want to keep. The screenshot is saved to Pictures/vm-net and copied to the clipboard.";
+"settings.shortcuts.screenshot.start" = "Start Capture";
+"settings.shortcuts.screenshot.manualHint" = "You can launch it from this button or trigger it anytime with the background shortcut.";
+"settings.shortcuts.screenshot.shortcut" = "Screenshot Shortcut";
+"settings.shortcuts.screenshot.shortcutHint" = "Record a shortcut that includes at least one modifier key. Press Esc to cancel recording.";
+"settings.shortcuts.screenshot.restoreDefault" = "Restore Default Shortcut";
+"settings.shortcuts.screenshot.permissionHint" = "The first capture requests Screen Recording permission. After granting access, restart vm-net.";
+"settings.shortcuts.screenshot.openSystemSettings" = "Open System Settings";
+"settings.shortcuts.recorder.recording" = "Press Shortcut";
+"settings.shortcuts.recorder.invalid" = "Record a key combination that includes Control, Option, Shift, or Command.";
 "settings.presentation.sectionTitle" = "Presentation";
 "settings.presentation.floatingBall.title" = "Floating Capsule";
 "settings.presentation.floatingBall.subtitle" = "Show upload and download rates on the desktop.";
@@ -207,6 +222,15 @@
 "activity.process.tag.backgroundActive" = "Background Active";
 "activity.process.tag.retryLike" = "Retry-Like";
 "activity.process.tag.burst" = "Burst";
+
+"screenshot.status.saved" = "Saved to Pictures/vm-net and copied to the clipboard: %@";
+"screenshot.status.failed" = "The screenshot failed. Try again.";
+"screenshot.status.permissionDenied" = "Screen Recording permission is required. Allow vm-net in System Settings and try again.";
+"screenshot.status.permissionRestartRequired" = "Screen Recording permission was requested. Allow vm-net in the system prompt or System Settings, then restart the app.";
+"screenshot.status.shortcutRegistrationFailed" = "The screenshot shortcut could not be registered. Choose a key combination that is not already in use.";
+"screenshot.status.unsupported" = "This screenshot feature requires macOS 14 or later.";
+"screenshot.status.displayUnavailable" = "No capturable display is available right now.";
+"screenshot.status.saveFailed" = "The screenshot was captured, but saving it to Pictures/vm-net failed.";
 
 "speedTest.start" = "Start Test";
 "speedTest.currentStatus" = "Current Status";
