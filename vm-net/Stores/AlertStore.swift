@@ -89,10 +89,9 @@ final class AlertStore: ObservableObject {
         guard preferences.activityAlertsEnabled else { return }
         guard snapshot.phase == .streaming else { return }
 
-        let frontmostBundleIdentifier = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         var activeProcessIDs = Set<Int32>()
 
-        for process in snapshot.processes {
+        for process in snapshot.processes where process.isCurrentSample {
             activeProcessIDs.insert(process.pid)
 
             var counters = countersByProcessID[process.pid] ?? RuleCounters()
@@ -110,7 +109,7 @@ final class AlertStore: ObservableObject {
             }
 
             let isBackgroundProcess = process.bundleIdentifier != nil
-                && process.bundleIdentifier != frontmostBundleIdentifier
+                && !process.isForegroundApp
                 && process.bundleIdentifier != Bundle.main.bundleIdentifier
             if isBackgroundProcess && process.totalBytesPerSecond >= Constants.backgroundThreshold {
                 counters.backgroundSamples += 1

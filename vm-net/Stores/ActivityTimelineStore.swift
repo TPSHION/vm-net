@@ -138,7 +138,9 @@ final class ActivityTimelineStore: ObservableObject {
     }
 
     private func handleDominantProcess(_ snapshot: ProcessTrafficSnapshot) {
-        let sortedProcesses = snapshot.processes.sorted {
+        let sortedProcesses = snapshot.processes
+            .filter(\.isCurrentSample)
+            .sorted {
             $0.totalBytesPerSecond > $1.totalBytesPerSecond
         }
         guard let topProcess = sortedProcesses.first else {

@@ -11,7 +11,7 @@ import SwiftUI
 struct NetworkDiagnosisPageView: View {
 
     @ObservedObject var store: NetworkDiagnosisStore
-    let onBack: () -> Void
+    let onBack: (() -> Void)? = nil
 
     private var snapshot: NetworkDiagnosisSnapshot {
         store.snapshot
@@ -50,17 +50,28 @@ struct NetworkDiagnosisPageView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .scrollIndicators(.hidden)
+            .vmNetScrollBarsHidden()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var headerRow: some View {
         HStack(spacing: 12) {
-            Button(action: onBack) {
-                Label(L10n.tr("navigation.backToSettings"), systemImage: "chevron.left")
+            if let onBack {
+                Button(action: onBack) {
+                    Label(L10n.tr("navigation.backToSettings"), systemImage: "chevron.left")
+                }
+                .buttonStyle(.link)
             }
-            .buttonStyle(.link)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.tr("navigation.diagnosis.title"))
+                    .font(.system(size: 18, weight: .semibold))
+
+                Text(L10n.tr("navigation.diagnosis.subtitle"))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
 
             Spacer(minLength: 0)
 

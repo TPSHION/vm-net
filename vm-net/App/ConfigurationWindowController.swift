@@ -8,13 +8,56 @@
 import AppKit
 import SwiftUI
 
+private final class ScrollBarHidingHostingController<Content: View>: NSHostingController<Content> {
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        hideScrollBars()
+    }
+
+    override func viewWillLayout() {
+        super.viewWillLayout()
+        hideScrollBars()
+    }
+
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        hideScrollBars()
+    }
+
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        hideScrollBars()
+    }
+
+    func hideScrollBars() {
+        let rootView = view.window?.contentView ?? view
+        configureScrollViews(in: rootView)
+    }
+
+    private func configureScrollViews(in rootView: NSView) {
+        if let scrollView = rootView as? NSScrollView {
+            scrollView.hasVerticalScroller = false
+            scrollView.hasHorizontalScroller = false
+            scrollView.autohidesScrollers = true
+            scrollView.scrollerStyle = .overlay
+        }
+
+        for subview in rootView.subviews {
+            configureScrollViews(in: subview)
+        }
+    }
+}
+
 @MainActor
 final class ConfigurationWindowController: NSWindowController {
 
     private enum Layout {
-        static let defaultSize = NSSize(width: 640, height: 640)
-        static let minSize = NSSize(width: 620, height: 580)
+        static let defaultSize = NSSize(width: 940, height: 700)
+        static let minSize = NSSize(width: 820, height: 620)
     }
+
+    private let hostingController: ScrollBarHidingHostingController<ConfigurationView>
 
     init(
         preferences: AppPreferences,
@@ -48,7 +91,8 @@ final class ConfigurationWindowController: NSWindowController {
             onDesktopPetRoamingToggle: onDesktopPetRoamingToggle,
             onDesktopPetAssetApply: onDesktopPetAssetApply
         )
-        let hostingController = NSHostingController(rootView: rootView)
+        let hostingController = ScrollBarHidingHostingController(rootView: rootView)
+        self.hostingController = hostingController
         let window = NSWindow(contentViewController: hostingController)
 
         window.title = "vm-net"
@@ -72,7 +116,9 @@ final class ConfigurationWindowController: NSWindowController {
 
     func present() {
         showWindow(nil)
+        hostingController.hideScrollBars()
         window?.makeKeyAndOrderFront(nil)
+        hostingController.hideScrollBars()
         NSApp.activate(ignoringOtherApps: true)
     }
 }

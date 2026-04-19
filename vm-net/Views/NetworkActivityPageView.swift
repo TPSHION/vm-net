@@ -5,7 +5,6 @@
 //  Created by Codex on 2026/4/17.
 //
 
-import AppKit
 import SwiftUI
 
 struct NetworkActivityPageView: View {
@@ -20,6 +19,9 @@ struct NetworkActivityPageView: View {
         case total
         case download
         case upload
+        case tenSecond
+        case oneMinute
+        case connections
 
         var id: String { rawValue }
 
@@ -31,6 +33,12 @@ struct NetworkActivityPageView: View {
                 return L10n.tr("activity.process.sort.download")
             case .upload:
                 return L10n.tr("activity.process.sort.upload")
+            case .tenSecond:
+                return L10n.tr("activity.process.sort.tenSecond")
+            case .oneMinute:
+                return L10n.tr("activity.process.sort.oneMinute")
+            case .connections:
+                return L10n.tr("activity.process.sort.connections")
             }
         }
     }
@@ -54,11 +62,10 @@ struct NetworkActivityPageView: View {
         }
     }
 
-    @ObservedObject var throughputStore: ThroughputStore
     @ObservedObject var processTrafficStore: ProcessTrafficStore
     @ObservedObject var alertStore: AlertStore
     @ObservedObject var activityTimelineStore: ActivityTimelineStore
-    let onBack: () -> Void
+    let onBack: (() -> Void)? = nil
 
     @State private var sortOption: ProcessSortOption = .total
     @State private var filterOption: ProcessFilterOption = .all
@@ -68,10 +75,6 @@ struct NetworkActivityPageView: View {
 
     private let byteRateFormatter = ByteRateFormatter()
     private let processTerminationService = ProcessTerminationService()
-
-    private var throughputSnapshot: NetworkMonitorSnapshot {
-        throughputStore.snapshot
-    }
 
     private var processSnapshot: ProcessTrafficSnapshot {
         processTrafficStore.snapshot
@@ -96,7 +99,6 @@ struct NetworkActivityPageView: View {
 
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 18) {
-                    summarySection
                     alertSection
                     timelineSection
                     processSection
@@ -104,7 +106,7 @@ struct NetworkActivityPageView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 12)
             }
-            .scrollIndicators(.hidden)
+            .vmNetScrollBarsHidden()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onDisappear {
@@ -139,14 +141,14 @@ struct NetworkActivityPageView: View {
 
     private var headerRow: some View {
         HStack(spacing: 12) {
-            Button(action: onBack) {
-                Label(L10n.tr("navigation.backToSettings"), systemImage: "chevron.left")
+            if let onBack {
+                Button(action: onBack) {
+                    Label(L10n.tr("navigation.backToSettings"), systemImage: "chevron.left")
+                }
+                .buttonStyle(.link)
             }
-            .buttonStyle(.link)
 
-            Spacer(minLength: 0)
-
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(L10n.tr("activity.header.title"))
                     .font(.system(size: 18, weight: .semibold))
 
@@ -154,58 +156,10 @@ struct NetworkActivityPageView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             }
+
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, minHeight: 34, alignment: .center)
-    }
-
-    private var summarySection: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 12) {
-                    summaryMetricCard(
-                        title: L10n.tr("activity.summary.download"),
-                        value: byteRateFormatter.string(
-                            for: throughputSnapshot.displayedThroughput.downloadBytesPerSecond
-                        )
-                    )
-
-                    summaryMetricCard(
-                        title: L10n.tr("activity.summary.upload"),
-                        value: byteRateFormatter.string(
-                            for: throughputSnapshot.displayedThroughput.uploadBytesPerSecond
-                        )
-                    )
-                }
-
-                HStack(spacing: 12) {
-                    summaryMetricCard(
-                        title: L10n.tr("activity.summary.interface"),
-                        value: throughputSnapshot.monitoredInterfaceName
-                            ?? L10n.tr("common.placeholder")
-                    )
-
-                    summaryMetricCard(
-                        title: L10n.tr("activity.summary.activeProcesses"),
-                        value: "\(processSnapshot.activeProcessCount)"
-                    )
-                }
-
-                if let lastUpdatedAt = throughputSnapshot.lastUpdatedAt {
-                    Text(
-                        L10n.tr(
-                            "activity.summary.lastUpdated",
-                            SpeedTestFormatter.historyTimestampString(date: lastUpdatedAt)
-                        )
-                    )
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                }
-            }
-            .padding(8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        } label: {
-            Text(L10n.tr("activity.summary.sectionTitle"))
-        }
     }
 
     private var processSection: some View {
@@ -479,10 +433,6 @@ struct NetworkActivityPageView: View {
 
             HStack(spacing: 10) {
                 processMetricBadge(
-                    title: L10n.tr("activity.process.metric.pid"),
-                    value: "\(process.pid)"
-                )
-                processMetricBadge(
                     title: L10n.tr("activity.process.metric.download"),
                     value: byteRateFormatter.string(for: process.downloadBytesPerSecond)
                 )
@@ -490,6 +440,59 @@ struct NetworkActivityPageView: View {
                     title: L10n.tr("activity.process.metric.upload"),
                     value: byteRateFormatter.string(for: process.uploadBytesPerSecond)
                 )
+                processMetricBadge(
+                    title: L10n.tr("activity.process.metric.tenSecond"),
+                    value: byteCountString(for: process.tenSecondTotalBytes)
+                )
+                processMetricBadge(
+                    title: L10n.tr("activity.process.metric.oneMinute"),
+                    value: byteCountString(for: process.oneMinuteTotalBytes)
+                )
+                processMetricBadge(
+                    title: L10n.tr("activity.process.metric.connections"),
+                    value: "\(process.activeConnectionCount)"
+                )
+            }
+
+            if !process.tags.isEmpty {
+                HStack(alignment: .center, spacing: 8) {
+                    ForEach(process.tags, id: \.self) { tag in
+                        processTagChip(tag)
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                if !process.remoteHostsTop.isEmpty {
+                    Text(
+                        L10n.tr(
+                            "activity.process.metric.hostsValue",
+                            process.remoteHostsTop.joined(
+                                separator: L10n.tr("common.listSeparator")
+                            )
+                        )
+                    )
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                }
+
+                if process.failureCountDelta > 0 {
+                    Text(
+                        L10n.tr(
+                            "activity.process.metric.failuresValue",
+                            process.failureCountDelta
+                        )
+                    )
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color(nsColor: .systemOrange))
+                }
+
+                if !process.isCurrentSample {
+                    Text(L10n.tr("activity.process.metric.recentQuiet"))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .padding(12)
@@ -520,28 +523,6 @@ struct NetworkActivityPageView: View {
         }
 
         return L10n.tr("activity.process.actions.button")
-    }
-
-    private func summaryMetricCard(
-        title: String,
-        value: String
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-
-            Text(value)
-                .font(.system(size: 16, weight: .semibold, design: .monospaced))
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.55))
-        )
     }
 
     private func processMetricBadge(
@@ -645,9 +626,7 @@ struct NetworkActivityPageView: View {
             guard let bundleIdentifier = process.bundleIdentifier else {
                 return false
             }
-            let frontmostBundleIdentifier = NSWorkspace.shared.frontmostApplication?
-                .bundleIdentifier
-            return bundleIdentifier != frontmostBundleIdentifier
+            return !process.isForegroundApp
                 && bundleIdentifier != Bundle.main.bundleIdentifier
         case .alerted:
             return isAlertedProcess(process)
@@ -668,7 +647,9 @@ struct NetworkActivityPageView: View {
             return true
         }
 
-        return false
+        return process.remoteHostsTop.contains { host in
+            host.localizedLowercase.contains(loweredQuery)
+        }
     }
 
     private func sortComparator(
@@ -687,6 +668,18 @@ struct NetworkActivityPageView: View {
         case .upload:
             if lhs.uploadBytesPerSecond != rhs.uploadBytesPerSecond {
                 return lhs.uploadBytesPerSecond > rhs.uploadBytesPerSecond
+            }
+        case .tenSecond:
+            if lhs.tenSecondTotalBytes != rhs.tenSecondTotalBytes {
+                return lhs.tenSecondTotalBytes > rhs.tenSecondTotalBytes
+            }
+        case .oneMinute:
+            if lhs.oneMinuteTotalBytes != rhs.oneMinuteTotalBytes {
+                return lhs.oneMinuteTotalBytes > rhs.oneMinuteTotalBytes
+            }
+        case .connections:
+            if lhs.activeConnectionCount != rhs.activeConnectionCount {
+                return lhs.activeConnectionCount > rhs.activeConnectionCount
             }
         }
 
@@ -725,6 +718,53 @@ struct NetworkActivityPageView: View {
             .font(.system(size: 11))
             .foregroundStyle(.secondary)
             .lineLimit(1)
+    }
+
+    private func processTagChip(_ tag: ProcessTrafficTag) -> some View {
+        Text(localizedTitle(for: tag))
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(tagTint(for: tag))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(tagTint(for: tag).opacity(0.12))
+            )
+    }
+
+    private func localizedTitle(for tag: ProcessTrafficTag) -> String {
+        switch tag {
+        case .highDownload:
+            return L10n.tr("activity.process.tag.highDownload")
+        case .highUpload:
+            return L10n.tr("activity.process.tag.highUpload")
+        case .backgroundActive:
+            return L10n.tr("activity.process.tag.backgroundActive")
+        case .retryLike:
+            return L10n.tr("activity.process.tag.retryLike")
+        case .burst:
+            return L10n.tr("activity.process.tag.burst")
+        }
+    }
+
+    private func tagTint(for tag: ProcessTrafficTag) -> Color {
+        switch tag {
+        case .highDownload, .highUpload, .retryLike:
+            return Color(nsColor: .systemOrange)
+        case .backgroundActive:
+            return Color(nsColor: .systemBlue)
+        case .burst:
+            return Color(nsColor: .systemPurple)
+        }
+    }
+
+    private func byteCountString(for bytes: Double) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useKB, .useMB, .useGB]
+        formatter.countStyle = .binary
+        formatter.includesUnit = true
+        formatter.isAdaptive = true
+        return formatter.string(fromByteCount: Int64(max(bytes, 0).rounded()))
     }
 
     private func performProcessAction(

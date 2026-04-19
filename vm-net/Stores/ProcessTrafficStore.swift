@@ -15,9 +15,14 @@ final class ProcessTrafficStore: ObservableObject {
     @Published private(set) var isMonitoring = false
 
     private let bridge: ProcessTrafficHelperBridge
+    private let activityDeriver: ProcessTrafficActivityDeriver
 
-    init(bridge: ProcessTrafficHelperBridge = ProcessTrafficHelperBridge()) {
+    init(
+        bridge: ProcessTrafficHelperBridge = ProcessTrafficHelperBridge(),
+        activityDeriver: ProcessTrafficActivityDeriver = ProcessTrafficActivityDeriver()
+    ) {
         self.bridge = bridge
+        self.activityDeriver = activityDeriver
     }
 
     deinit {
@@ -27,16 +32,23 @@ final class ProcessTrafficStore: ObservableObject {
     func activateMonitoring() {
         guard !isMonitoring else { return }
         isMonitoring = true
+        activityDeriver.reset()
 
-        bridge.start { [weak self] snapshot in
-            self?.snapshot = snapshot
-        }
+        bridge.start(
+            sampleHandler: { [weak self] sample in
+                self?.consume(sample)
+            },
+            errorHandler: { [weak self] message in
+                self?.snapshot = .failed(message)
+            }
+        )
     }
 
     func deactivateMonitoring() {
         guard isMonitoring else { return }
         isMonitoring = false
         bridge.stop()
+        activityDeriver.reset()
         snapshot = .idle
     }
 
@@ -48,7 +60,7 @@ final class ProcessTrafficStore: ObservableObject {
             localizedMessage = L10n.tr("activity.process.status.idle")
         case .streaming:
             localizedMessage = L10n.tr(
-                "activity.process.status.streamingLowPower",
+                "activity.process.status.streamingEnhanced",
                 snapshot.activeProcessCount
             )
         case .unavailable:
@@ -61,8 +73,18 @@ final class ProcessTrafficStore: ObservableObject {
             phase: snapshot.phase,
             statusMessage: localizedMessage,
             processes: snapshot.processes,
+            activeProcessCount: snapshot.activeProcessCount,
             lastUpdatedAt: snapshot.lastUpdatedAt,
             errorMessage: snapshot.errorMessage
+        )
+    }
+
+    private func consume(_ sample: ProcessTrafficSample) {
+        let processes = activityDeriver.derive(sample: sample)
+        snapshot = .streaming(
+            processes: processes,
+            activeProcessCount: sample.processes.count,
+            lastUpdatedAt: sample.sampleTime
         )
     }
 }

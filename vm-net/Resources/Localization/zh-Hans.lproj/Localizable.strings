@@ -17,6 +17,22 @@
 "language.simplifiedChinese" = "简体中文";
 
 "navigation.backToSettings" = "返回设置";
+"navigation.group.workspace" = "工作区";
+"navigation.group.tools" = "工具";
+"navigation.group.desktop" = "桌面";
+"navigation.group.preferences" = "偏好";
+"navigation.overview.title" = "总览";
+"navigation.overview.subtitle" = "集中查看当前异常、事件摘要和常用快捷操作。";
+"navigation.activity.title" = "网络活动";
+"navigation.activity.subtitle" = "查看进程排行、异常提醒和实时活动时间线。";
+"navigation.diagnosis.title" = "网络诊断";
+"navigation.diagnosis.subtitle" = "检查网络路径、DNS 解析和 HTTPS 连通性。";
+"navigation.speedTest.title" = "网络测速";
+"navigation.speedTest.subtitle" = "通过 M-Lab 测量当前带宽和延迟表现。";
+"navigation.desktopPet.title" = "桌面宠物";
+"navigation.desktopPet.subtitle" = "预览桌宠、管理解锁状态并调整行为。";
+"navigation.preferences.title" = "偏好设置";
+"navigation.preferences.subtitle" = "管理启动方式、外观表现、提醒规则和应用行为。";
 
 "menu.openWindow" = "打开 vm-net";
 "menu.openActivity" = "打开网络活动";
@@ -64,7 +80,7 @@
 "settings.activity.systemNotifications.title" = "系统通知";
 "settings.activity.systemNotifications.subtitle" = "命中提醒规则时发送 macOS 通知。";
 "settings.activity.latestAlert" = "最近一次提醒";
-"settings.dashboard.sectionTitle" = "异常提醒";
+"settings.dashboard.sectionTitle" = "异常与事件摘要";
 "settings.dashboard.status.healthy" = "运行正常";
 "settings.dashboard.status.monitoring" = "正在检查";
 "settings.dashboard.status.warning" = "需要关注";
@@ -77,6 +93,8 @@
 "settings.dashboard.metric.interface" = "监控接口";
 "settings.dashboard.metric.interfaceUnavailable" = "未识别";
 "settings.dashboard.alertsDisabled" = "异常提醒当前已关闭，不会生成新的提醒或系统通知。";
+"settings.dashboard.recentDiagnosis" = "最近诊断";
+"settings.dashboard.recentEvents" = "最近事件";
 "settings.actions.sectionTitle" = "一键处理";
 "settings.actions.startDiagnosis.title" = "开始网络诊断";
 "settings.actions.startDiagnosis.subtitle" = "检查网络路径、DNS 和 HTTPS，快速确认问题在本机还是链路。";
@@ -102,13 +120,7 @@
 "settings.feature.diagnosis.subtitle" = "检查网络路径、DNS 和 HTTPS。";
 
 "activity.header.title" = "网络活动";
-"activity.header.subtitle" = "查看实时总带宽、异常提醒和低开销进程排行。";
-"activity.summary.sectionTitle" = "实时概览";
-"activity.summary.download" = "当前下载";
-"activity.summary.upload" = "当前上传";
-"activity.summary.interface" = "监控接口";
-"activity.summary.activeProcesses" = "活跃进程";
-"activity.summary.lastUpdated" = "最近更新：%@";
+"activity.header.subtitle" = "点击开始分析后按秒刷新进程活动，并查看更完整的占网细节。";
 "activity.alert.sectionTitle" = "异常提醒";
 "activity.alert.empty" = "暂未触发异常提醒。";
 "activity.alert.kind.highDownload" = "高下载";
@@ -140,18 +152,19 @@
 "activity.timeline.summary.collectorFailedFallback" = "进程活动采集器异常退出，请稍后重试。";
 "activity.process.sectionTitle" = "进程流量";
 "activity.process.emptyTitle" = "进程流量数据暂不可用";
-"activity.process.emptyDescription" = "这里会显示低开销的进程摘要排行，不再持续采集连接级明细。";
+"activity.process.emptyDescription" = "这里会显示按秒刷新的进程活动列表，并保留最近 1 分钟的占网统计。";
 "activity.process.status.idle" = "等待进程流量采集开始。";
 "activity.process.status.streaming" = "正在监控 %ld 个活跃进程。";
 "activity.process.status.streamingLowPower" = "低开销采样中，正在监控 %ld 个活跃进程。";
+"activity.process.status.streamingEnhanced" = "活动页增强采样中，正在监控 %ld 个活跃进程。";
 "activity.process.status.unavailable" = "进程活动采集器尚未连接。";
 "activity.process.status.failed" = "进程活动采集失败。";
 "activity.process.analysis.start" = "开始分析";
 "activity.process.analysis.stop" = "停止分析";
-"activity.process.analysis.idleHint" = "深入分析默认关闭，点击开始后才会拉起进程采集。";
-"activity.process.analysis.runningHint" = "深入分析进行中，离开页面或点击停止都会结束采集。";
+"activity.process.analysis.idleHint" = "默认不自动开始，点击开始分析后才会启动增强采样。";
+"activity.process.analysis.runningHint" = "增强采样进行中，按秒刷新；离开页面或点击停止都会结束采集。";
 "activity.process.analysis.inactiveTitle" = "深入分析当前未开启";
-"activity.process.analysis.inactiveDescription" = "开始分析后，这里会显示低开销的进程排行、筛选和一键结束操作。";
+"activity.process.analysis.inactiveDescription" = "恢复分析后，这里会显示进程排行、最近窗口统计、远端域名和重试迹象。";
 "activity.process.error.terminated" = "进程活动采集器已停止。";
 "activity.process.error.status" = "进程活动采集器退出，状态码 %d。";
 "activity.process.controls.filter" = "筛选范围";
@@ -173,6 +186,8 @@
 "activity.process.sort.total" = "总流量";
 "activity.process.sort.download" = "下载";
 "activity.process.sort.upload" = "上传";
+"activity.process.sort.tenSecond" = "10 秒累计";
+"activity.process.sort.oneMinute" = "1 分钟累计";
 "activity.process.sort.connections" = "连接数";
 "activity.process.search.placeholder" = "搜索应用或 Bundle ID";
 "activity.process.results" = "显示 %1$ld / %2$ld 个匹配进程";
@@ -181,8 +196,17 @@
 "activity.process.metric.pid" = "PID";
 "activity.process.metric.download" = "下载";
 "activity.process.metric.upload" = "上传";
+"activity.process.metric.tenSecond" = "10 秒";
+"activity.process.metric.oneMinute" = "1 分钟";
 "activity.process.metric.connections" = "连接数";
 "activity.process.metric.hostsValue" = "远端域名：%@";
+"activity.process.metric.failuresValue" = "重试迹象：%d";
+"activity.process.metric.recentQuiet" = "当前静默，保留最近 1 分钟统计。";
+"activity.process.tag.highDownload" = "高下载";
+"activity.process.tag.highUpload" = "高上传";
+"activity.process.tag.backgroundActive" = "后台活跃";
+"activity.process.tag.retryLike" = "异常重试";
+"activity.process.tag.burst" = "短时突发";
 
 "speedTest.start" = "开始测速";
 "speedTest.currentStatus" = "当前状态";

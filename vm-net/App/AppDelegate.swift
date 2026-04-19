@@ -93,7 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         petWorldController = nil
     }
 
-    func showMainWindow(page: ConfigurationPage = .settings) {
+    func showMainWindow(page: ConfigurationPage = .overview) {
         configurationNavigationStore.show(page)
         launchAtLoginManager.refresh()
         refreshLocalization()
@@ -154,7 +154,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             preferences: preferences
         )
         statusItemController.openWindowHandler = { [weak self] in
-            self?.showMainWindow(page: .settings)
+            self?.showMainWindow(page: .overview)
         }
         statusItemController.openNetworkActivityHandler = { [weak self] in
             self?.showMainWindow(page: .activity)
@@ -174,7 +174,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             preferences: preferences
         )
         floatingBallController.openWindowHandler = { [weak self] in
-            self?.showMainWindow(page: .settings)
+            self?.showMainWindow(page: .overview)
         }
         floatingBallController.openNetworkActivityHandler = { [weak self] in
             self?.showMainWindow(page: .activity)

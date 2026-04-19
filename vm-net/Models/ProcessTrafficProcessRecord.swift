@@ -11,11 +11,18 @@ struct ProcessTrafficProcessRecord: Identifiable, Equatable {
     let pid: Int32
     let processName: String
     let bundleIdentifier: String?
+    let isForegroundApp: Bool
+    let isCurrentSample: Bool
     let downloadBytesPerSecond: Double
     let uploadBytesPerSecond: Double
+    let tenSecondDownloadBytes: Double
+    let tenSecondUploadBytes: Double
+    let oneMinuteDownloadBytes: Double
+    let oneMinuteUploadBytes: Double
     let activeConnectionCount: Int
     let remoteHostsTop: [String]
     let failureCountDelta: Int
+    let tags: [ProcessTrafficTag]
 
     var id: String {
         let bundlePart = bundleIdentifier ?? processName
@@ -24,5 +31,13 @@ struct ProcessTrafficProcessRecord: Identifiable, Equatable {
 
     var totalBytesPerSecond: Double {
         downloadBytesPerSecond + uploadBytesPerSecond
+    }
+
+    var tenSecondTotalBytes: Double {
+        tenSecondDownloadBytes + tenSecondUploadBytes
+    }
+
+    var oneMinuteTotalBytes: Double {
+        oneMinuteDownloadBytes + oneMinuteUploadBytes
     }
 }

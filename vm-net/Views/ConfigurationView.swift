@@ -73,34 +73,87 @@ struct ConfigurationView: View {
     @StateObject private var appStoreUpdateStore = AppStoreUpdateStore()
 
     var body: some View {
-        Group {
-            switch navigationStore.page {
-            case .settings:
-                settingsPage
-            case .activity:
-                activityPage
-            case .speedTest:
-                speedTestPage
-            case .diagnosis:
-                diagnosisPage
-            case .desktopPet:
-                desktopPetPage
-            }
+        NavigationSplitView {
+            sidebar
+                .navigationSplitViewColumnWidth(min: 220, ideal: 244, max: 280)
+        } detail: {
+            detailContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .padding(24)
         }
+        .navigationSplitViewStyle(.balanced)
         .environment(\.locale, preferences.appLanguage.locale)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(.horizontal, 24)
     }
 
-    private var settingsPage: some View {
+    private var sidebarSelection: Binding<ConfigurationPage?> {
+        Binding(
+            get: { navigationStore.page },
+            set: { selection in
+                guard let selection else { return }
+                navigationStore.show(selection)
+            }
+        )
+    }
+
+    private var sidebar: some View {
+        List(selection: sidebarSelection) {
+            ForEach(ConfigurationPageGroup.allCases) { group in
+                Section {
+                    ForEach(group.pages) { page in
+                        NavigationLink(value: page) {
+                            ConfigurationSidebarRow(page: page)
+                        }
+                    }
+                } header: {
+                    Text(group.title)
+                }
+            }
+        }
+        .listStyle(.sidebar)
+        .id(preferences.appLanguage.rawValue)
+    }
+
+    @ViewBuilder
+    private var detailContent: some View {
+        switch navigationStore.page {
+        case .overview:
+            overviewPage
+        case .activity:
+            activityPage
+        case .diagnosis:
+            diagnosisPage
+        case .speedTest:
+            speedTestPage
+        case .desktopPet:
+            desktopPetPage
+        case .preferences:
+            preferencesPage
+        }
+    }
+
+    private var overviewPage: some View {
         VStack(alignment: .leading, spacing: 16) {
-            headerSection
+            overviewHeaderSection
 
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 18) {
                     dashboardSection
                     quickActionsSection
-                    eventSummarySection
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 12)
+            }
+            .vmNetScrollBarsHidden()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var preferencesPage: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            preferencesHeaderSection
+
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 18) {
                     launchSection
                     presentationSection
                     activitySection
@@ -108,16 +161,13 @@ struct ConfigurationView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 12)
             }
-            .scrollIndicators(.hidden)
+            .vmNetScrollBarsHidden()
         }
-        .padding(.top, 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var speedTestPage: some View {
-        SpeedTestPageView(store: speedTestStore) {
-            navigationStore.show(.settings)
-        }
+        SpeedTestPageView(store: speedTestStore)
     }
 
     private var dashboardSection: some View {
@@ -176,6 +226,27 @@ struct ConfigurationView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                 }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 10) {
+                    overviewSupplementTitle(L10n.tr("settings.dashboard.recentDiagnosis"))
+                    diagnosisSummaryCard
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    overviewSupplementTitle(L10n.tr("settings.dashboard.recentEvents"))
+
+                    if recentTimelineEvents.isEmpty {
+                        Text(L10n.tr("settings.events.empty"))
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(recentTimelineEvents) { event in
+                            timelineSummaryRow(event)
+                        }
+                    }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(6)
@@ -229,66 +300,42 @@ struct ConfigurationView: View {
         }
     }
 
-    private var eventSummarySection: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                diagnosisSummaryCard
-
-                Divider()
-
-                if recentTimelineEvents.isEmpty {
-                    Text(L10n.tr("settings.events.empty"))
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(recentTimelineEvents) { event in
-                        timelineSummaryRow(event)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(4)
-        } label: {
-            Text(L10n.tr("settings.events.sectionTitle"))
-        }
-    }
-
     private var diagnosisPage: some View {
-        NetworkDiagnosisPageView(store: diagnosisStore) {
-            navigationStore.show(.settings)
-        }
+        NetworkDiagnosisPageView(store: diagnosisStore)
     }
 
     private var activityPage: some View {
         NetworkActivityPageView(
-            throughputStore: throughputStore,
             processTrafficStore: processTrafficStore,
             alertStore: alertStore,
             activityTimelineStore: activityTimelineStore
-        ) {
-            navigationStore.show(.settings)
-        }
+        )
     }
 
     private var desktopPetPage: some View {
         DesktopPetSettingsPageView(
             preferences: preferences,
             desktopPetAccessStore: desktopPetAccessStore,
-            onBack: {
-                navigationStore.show(.settings)
-            },
             onDesktopPetToggle: onDesktopPetToggle,
             onDesktopPetRoamingToggle: onDesktopPetRoamingToggle,
             onDesktopPetAssetApply: onDesktopPetAssetApply
         )
     }
 
-    private var headerSection: some View {
+    private var overviewHeaderSection: some View {
+        pageTitleBlock(
+            title: L10n.tr("navigation.overview.title"),
+            subtitle: L10n.tr("navigation.overview.subtitle")
+        )
+    }
+
+    private var preferencesHeaderSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(L10n.tr("settings.header.subtitle"))
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+            HStack(alignment: .top, spacing: 12) {
+                pageTitleBlock(
+                    title: L10n.tr("navigation.preferences.title"),
+                    subtitle: L10n.tr("navigation.preferences.subtitle")
+                )
 
                 Spacer(minLength: 0)
 
@@ -318,6 +365,27 @@ struct ConfigurationView: View {
                     .foregroundStyle(updateMessageColor)
             }
         }
+    }
+
+    private func pageTitleBlock(
+        title: String,
+        subtitle: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.system(size: 24, weight: .semibold))
+
+            Text(subtitle)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func overviewSupplementTitle(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(.secondary)
     }
 
     private var updateMessageColor: Color {
@@ -907,7 +975,7 @@ struct ConfigurationView: View {
                     }
                     .padding(.vertical, 1)
                 }
-                .scrollIndicators(.hidden)
+                .vmNetScrollBarsHidden()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
@@ -1212,5 +1280,26 @@ struct ConfigurationView: View {
         case .failure:
             return "xmark.shield.fill"
         }
+    }
+}
+
+private struct ConfigurationSidebarRow: View {
+
+    let page: ConfigurationPage
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: page.symbolName)
+                .foregroundStyle(.secondary)
+                .frame(width: 16)
+
+            Text(page.title)
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .padding(.vertical, 2)
     }
 }
