@@ -172,8 +172,6 @@ struct ConfigurationView: View {
 
     private var quickFeaturesPage: some View {
         VStack(alignment: .leading, spacing: 16) {
-            quickFeaturesHeaderSection
-
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 18) {
                     shortcutsSection
@@ -385,13 +383,6 @@ struct ConfigurationView: View {
                     .foregroundStyle(updateMessageColor)
             }
         }
-    }
-
-    private var quickFeaturesHeaderSection: some View {
-        pageTitleBlock(
-            title: L10n.tr("navigation.quickFeatures.title"),
-            subtitle: L10n.tr("navigation.quickFeatures.subtitle")
-        )
     }
 
     private func pageTitleBlock(
@@ -632,16 +623,6 @@ struct ConfigurationView: View {
     private var shortcutsSection: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(L10n.tr("settings.shortcuts.screenshot.title"))
-                        .font(.system(size: 13, weight: .medium))
-
-                    Text(L10n.tr("settings.shortcuts.screenshot.subtitle"))
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
                 ViewThatFits(in: .horizontal) {
                     shortcutActionRow
                     shortcutActionColumn

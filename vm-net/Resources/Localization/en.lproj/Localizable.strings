@@ -251,7 +251,8 @@
 "screenshot.toolbar.strokeColor.green" = "Green";
 "screenshot.toolbar.strokeColor.blue" = "Blue";
 "screenshot.toolbar.strokeColor.gray" = "Gray";
-"screenshot.status.saved" = "Saved to Pictures/vm-net: %@";
+"screenshot.fileNamePrefix" = "Screenshot";
+"screenshot.status.saved" = "Saved: %@";
 "screenshot.status.copied" = "Copied to the clipboard and ready to paste.";
 "screenshot.status.failed" = "The screenshot failed. Try again.";
 "screenshot.status.permissionDenied" = "Screen Recording permission is required. Allow vm-net in System Settings and try again.";
@@ -259,7 +260,7 @@
 "screenshot.status.shortcutRegistrationFailed" = "The screenshot shortcut could not be registered. Choose a key combination that is not already in use.";
 "screenshot.status.unsupported" = "This screenshot feature requires macOS 14 or later.";
 "screenshot.status.displayUnavailable" = "No capturable display is available right now.";
-"screenshot.status.saveFailed" = "The screenshot was captured, but saving it to Pictures/vm-net failed.";
+"screenshot.status.saveFailed" = "Saving the screenshot failed. Choose a location and try again.";
 
 "speedTest.start" = "Start Test";
 "speedTest.currentStatus" = "Current Status";

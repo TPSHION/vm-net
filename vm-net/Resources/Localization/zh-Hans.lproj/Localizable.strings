@@ -24,7 +24,7 @@
 "navigation.overview.title" = "总览";
 "navigation.overview.subtitle" = "集中查看当前异常、事件摘要和常用快捷操作。";
 "navigation.quickFeatures.title" = "快捷功能";
-"navigation.quickFeatures.subtitle" = "集中放置截图等轻量功能，后续扩展也会从这里继续增加。";
+"navigation.quickFeatures.subtitle" = "集中放置截屏等轻量功能，后续扩展也会从这里继续增加。";
 "navigation.activity.title" = "网络活动";
 "navigation.activity.subtitle" = "查看进程排行、异常提醒和实时活动时间线。";
 "navigation.diagnosis.title" = "网络诊断";
@@ -38,7 +38,7 @@
 
 "menu.openWindow" = "打开 vm-net";
 "menu.openActivity" = "打开网络活动";
-"menu.captureRegion" = "区域截图";
+"menu.captureRegion" = "截屏";
 "menu.quit" = "退出";
 
 "statusItem.tooltip.monitoringInterface" = "正在监控 %@";
@@ -64,11 +64,11 @@
 "settings.language.title" = "应用语言";
 "settings.language.description" = "立即作用到窗口、菜单和后续状态提示。";
 "settings.shortcuts.sectionTitle" = "快捷功能";
-"settings.shortcuts.screenshot.title" = "区域截图";
-"settings.shortcuts.screenshot.subtitle" = "触发后会默认选中当前屏幕，可继续拖拽或通过控制点微调，并在下方工具栏中选择保存到文件或确认截图。";
-"settings.shortcuts.screenshot.start" = "开始截图";
+"settings.shortcuts.screenshot.title" = "截屏";
+"settings.shortcuts.screenshot.subtitle" = "触发后会默认选中当前屏幕，可继续拖拽或通过控制点微调，并在下方工具栏中选择保存到文件或确认截屏。";
+"settings.shortcuts.screenshot.start" = "开始截屏";
 "settings.shortcuts.screenshot.manualHint" = "可以直接点按钮，也可以通过后台快捷键随时触发；放开鼠标后仍可继续微调选区。";
-"settings.shortcuts.screenshot.shortcut" = "截图快捷键";
+"settings.shortcuts.screenshot.shortcut" = "截屏快捷键";
 "settings.shortcuts.screenshot.shortcutHint" = "录制一个包含修饰键的组合。按 Esc 取消录制。";
 "settings.shortcuts.screenshot.restoreDefault" = "恢复默认快捷键";
 "settings.shortcuts.screenshot.permissionHint" = "首次使用会申请屏幕录制权限；允许后需要重新启动 vm-net。";
@@ -251,15 +251,16 @@
 "screenshot.toolbar.strokeColor.green" = "绿色";
 "screenshot.toolbar.strokeColor.blue" = "蓝色";
 "screenshot.toolbar.strokeColor.gray" = "灰色";
-"screenshot.status.saved" = "截图已保存到“图片/vm-net”：%@";
-"screenshot.status.copied" = "截图已复制到剪贴板，可直接粘贴。";
-"screenshot.status.failed" = "截图失败，请稍后重试。";
+"screenshot.fileNamePrefix" = "截屏";
+"screenshot.status.saved" = "截屏已保存：%@";
+"screenshot.status.copied" = "截屏已复制到剪贴板，可直接粘贴。";
+"screenshot.status.failed" = "截屏失败，请稍后重试。";
 "screenshot.status.permissionDenied" = "未获得屏幕录制权限，请在系统设置里允许 vm-net 后重试。";
 "screenshot.status.permissionRestartRequired" = "已请求屏幕录制权限。请在系统弹窗或系统设置中允许 vm-net，然后重新启动应用。";
-"screenshot.status.shortcutRegistrationFailed" = "截图快捷键注册失败，请换一个未被系统或其他应用占用的组合。";
-"screenshot.status.unsupported" = "当前系统版本不支持这个截图功能，需要 macOS 14 或更高版本。";
-"screenshot.status.displayUnavailable" = "没有找到可用于截图的显示器。";
-"screenshot.status.saveFailed" = "截图已生成，但保存到“图片/vm-net”失败。";
+"screenshot.status.shortcutRegistrationFailed" = "截屏快捷键注册失败，请换一个未被系统或其他应用占用的组合。";
+"screenshot.status.unsupported" = "当前系统版本不支持这个截屏功能，需要 macOS 14 或更高版本。";
+"screenshot.status.displayUnavailable" = "没有找到可用于截屏的显示器。";
+"screenshot.status.saveFailed" = "截屏保存失败，请重新选择位置后重试。";
 
 "speedTest.start" = "开始测速";
 "speedTest.currentStatus" = "当前状态";

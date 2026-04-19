@@ -27,6 +27,7 @@ final class RegionScreenshotController: ObservableObject {
 
     private var selectionSession: RegionCaptureOverlaySession?
     private var previousFrontmostApplication: NSRunningApplication?
+    private var lastSaveDirectoryURL: URL?
 
     var supportsRegionCapture: Bool {
         if #available(macOS 14.0, *) {
@@ -117,7 +118,6 @@ final class RegionScreenshotController: ObservableObject {
             onCommit: { [weak self] selection, annotations, action in
                 guard let self else { return }
                 self.selectionSession = nil
-                self.restorePreviousFrontmostApplication()
                 Task {
                     await self.captureSelection(
                         selection,
@@ -142,6 +142,22 @@ final class RegionScreenshotController: ObservableObject {
         annotations: [RegionCaptureAnnotation],
         action: RegionCaptureCommitAction
     ) async {
+        let destinationURL: URL?
+        switch action {
+        case .copyToClipboard:
+            destinationURL = nil
+        case .saveToFile:
+            guard let selectedURL = presentSavePanel() else {
+                restorePreviousFrontmostApplication()
+                return
+            }
+            destinationURL = selectedURL
+        }
+
+        defer {
+            restorePreviousFrontmostApplication()
+        }
+
         let request = captureRequest(
             for: selection,
             annotations: annotations
@@ -151,7 +167,8 @@ final class RegionScreenshotController: ObservableObject {
             let result = try await Task.detached(priority: .userInitiated) {
                 try await RegionScreenshotPipeline.capture(
                     request,
-                    action: action
+                    action: action,
+                    destinationURL: destinationURL
                 )
             }.value
 
@@ -193,6 +210,24 @@ final class RegionScreenshotController: ObservableObject {
     private func showStatus(_ message: String, kind: StatusKind) {
         statusMessage = message
         statusKind = kind
+    }
+
+    private func presentSavePanel() -> URL? {
+        NSApp.activate(ignoringOtherApps: true)
+
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.png]
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        panel.nameFieldStringValue = suggestedFileName()
+        panel.directoryURL = preferredSaveDirectoryURL()
+
+        let response = panel.runModal()
+        guard response == .OK, let url = panel.url else { return nil }
+
+        let normalizedURL = normalizedSaveURL(from: url)
+        lastSaveDirectoryURL = normalizedURL.deletingLastPathComponent()
+        return normalizedURL
     }
 
     private func copyImageToPasteboard(_ pngData: Data) {
@@ -245,6 +280,37 @@ final class RegionScreenshotController: ObservableObject {
             previousFrontmostApplication.activate(options: [.activateIgnoringOtherApps])
         }
     }
+
+    private func preferredSaveDirectoryURL() -> URL {
+        if let lastSaveDirectoryURL {
+            return lastSaveDirectoryURL
+        }
+
+        if let lastCaptureURL {
+            return lastCaptureURL.deletingLastPathComponent()
+        }
+
+        return FileManager.default.urls(
+            for: .picturesDirectory,
+            in: .userDomainMask
+        ).first ?? FileManager.default.temporaryDirectory
+    }
+
+    private func suggestedFileName() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        return "\(L10n.tr("screenshot.fileNamePrefix"))-\(formatter.string(from: Date())).png"
+    }
+
+    private func normalizedSaveURL(from url: URL) -> URL {
+        let pngExtension = UTType.png.preferredFilenameExtension ?? "png"
+        let pathExtension = url.pathExtension.lowercased()
+        guard pathExtension != pngExtension else {
+            return url
+        }
+
+        return url.deletingPathExtension().appendingPathExtension(pngExtension)
+    }
 }
 
 private struct RegionCaptureRequest: Sendable {
@@ -265,7 +331,8 @@ private enum RegionScreenshotPipeline {
 
     static func capture(
         _ request: RegionCaptureRequest,
-        action: RegionCaptureCommitAction
+        action: RegionCaptureCommitAction,
+        destinationURL: URL? = nil
     ) async throws -> RegionCaptureResult {
         let baseImage = try await captureImage(for: request)
         let image = try renderAnnotations(
@@ -280,7 +347,10 @@ private enum RegionScreenshotPipeline {
         case .copyToClipboard:
             fileURL = nil
         case .saveToFile:
-            fileURL = try saveImageData(pngData)
+            guard let destinationURL else {
+                throw RegionScreenshotError.saveFailed
+            }
+            fileURL = try saveImageData(pngData, to: destinationURL)
         }
 
         return RegionCaptureResult(
@@ -606,31 +676,7 @@ private enum RegionScreenshotPipeline {
         return mutableData as Data
     }
 
-    private static func saveImageData(_ pngData: Data) throws -> URL {
-        let directory = FileManager.default.urls(
-            for: .picturesDirectory,
-            in: .userDomainMask
-        ).first ?? FileManager.default.temporaryDirectory
-
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyyMMdd-HHmmss"
-        let fileName = "vm-net-\(formatter.string(from: Date())).png"
-        let screenshotsDirectory = directory.appendingPathComponent(
-            "vm-net",
-            isDirectory: true
-        )
-
-        do {
-            try FileManager.default.createDirectory(
-                at: screenshotsDirectory,
-                withIntermediateDirectories: true
-            )
-        } catch {
-            throw RegionScreenshotError.saveFailed
-        }
-
-        let url = screenshotsDirectory.appendingPathComponent(fileName)
-
+    private static func saveImageData(_ pngData: Data, to url: URL) throws -> URL {
         do {
             try pngData.write(to: url, options: .atomic)
             return url

@@ -66,7 +66,6 @@ final class RegionCaptureToolbarController: NSWindowController {
         case ellipse
         case arrow
         case pen
-        case mosaic
         case undo
 
         var symbolNames: [String] {
@@ -79,8 +78,6 @@ final class RegionCaptureToolbarController: NSWindowController {
                 return ["arrow.up.forward"]
             case .pen:
                 return ["pencil"]
-            case .mosaic:
-                return ["square.grid.2x2", "checkerboard.rectangle"]
             case .undo:
                 return ["arrow.uturn.backward"]
             }
@@ -96,8 +93,6 @@ final class RegionCaptureToolbarController: NSWindowController {
                 return L10n.tr("screenshot.toolbar.arrow")
             case .pen:
                 return L10n.tr("screenshot.toolbar.pen")
-            case .mosaic:
-                return L10n.tr("screenshot.toolbar.mosaic")
             case .undo:
                 return L10n.tr("screenshot.toolbar.undo")
             }
@@ -317,7 +312,6 @@ final class RegionCaptureToolbarController: NSWindowController {
             ellipseToolButton,
             penToolButton,
             arrowToolButton,
-            makeStaticOrnamentView(for: .mosaic),
             makeSeparator(),
             undoButton,
             makeSeparator(),
@@ -544,44 +538,6 @@ final class RegionCaptureToolbarController: NSWindowController {
         ])
 
         return button
-    }
-
-    private func makeStaticOrnamentView(for tool: OrnamentTool) -> NSView {
-        let container = RegionCaptureToolbarOrnamentView(
-            maskCornerRadius: Layout.itemMaskCornerRadius,
-            hoverMaskColor: Color.itemHoverMask
-        )
-        container.translatesAutoresizingMaskIntoConstraints = false
-        container.widthAnchor.constraint(
-            equalToConstant: Layout.buttonSize.width
-        ).isActive = true
-        container.heightAnchor.constraint(
-            equalToConstant: Layout.buttonSize.height
-        ).isActive = true
-        container.toolTip = tool.accessibilityLabel
-
-        let imageView = NSImageView(
-            image: makeSymbolImage(
-                preferredNames: tool.symbolNames,
-                accessibilityLabel: tool.accessibilityLabel
-            )
-        )
-        imageView.contentTintColor = Color.symbol
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.symbolConfiguration = NSImage.SymbolConfiguration(
-            pointSize: Layout.symbolPointSize,
-            weight: .regular
-        )
-        container.addSubview(imageView)
-        NSLayoutConstraint.activate([
-            imageView.centerXAnchor.constraint(
-                equalTo: container.centerXAnchor
-            ),
-            imageView.centerYAnchor.constraint(
-                equalTo: container.centerYAnchor
-            ),
-        ])
-        return container
     }
 
     private func makeSeparator() -> NSView {
@@ -1045,60 +1001,5 @@ private final class RegionCaptureToolbarSelectableButton: NSButton {
     func withHoverClearedAfterAction() -> Self {
         clearsHoverAfterAction = true
         return self
-    }
-}
-
-private final class RegionCaptureToolbarOrnamentView: NSView {
-
-    private let maskCornerRadius: CGFloat
-    private let hoverMaskColor: NSColor
-
-    init(
-        maskCornerRadius: CGFloat,
-        hoverMaskColor: NSColor
-    ) {
-        self.maskCornerRadius = maskCornerRadius
-        self.hoverMaskColor = hoverMaskColor
-        super.init(frame: .zero)
-        configure()
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    private func configure() {
-        wantsLayer = true
-        layer?.cornerRadius = maskCornerRadius
-        layer?.cornerCurve = .continuous
-        layer?.backgroundColor = NSColor.clear.cgColor
-    }
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        trackingAreas.forEach(removeTrackingArea)
-
-        let trackingArea = NSTrackingArea(
-            rect: bounds,
-            options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited],
-            owner: self,
-            userInfo: nil
-        )
-        addTrackingArea(trackingArea)
-    }
-
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
-        false
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        super.mouseEntered(with: event)
-        layer?.backgroundColor = hoverMaskColor.cgColor
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        super.mouseExited(with: event)
-        layer?.backgroundColor = NSColor.clear.cgColor
     }
 }
