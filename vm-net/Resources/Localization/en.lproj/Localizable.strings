@@ -226,6 +226,15 @@
 "screenshot.toolbar.saveToFile" = "Save to File";
 "screenshot.toolbar.copyToClipboard" = "Confirm Capture";
 "screenshot.toolbar.cancel" = "Cancel";
+"screenshot.toolbar.rectangle" = "Rectangle";
+"screenshot.toolbar.ellipse" = "Ellipse";
+"screenshot.toolbar.arrow" = "Arrow";
+"screenshot.toolbar.pen" = "Pen";
+"screenshot.toolbar.mosaic" = "Mosaic";
+"screenshot.toolbar.text" = "Text";
+"screenshot.toolbar.tag" = "Tag";
+"screenshot.toolbar.textRecognition" = "Text Recognition";
+"screenshot.toolbar.undo" = "Undo";
 "screenshot.status.saved" = "Saved to Pictures/vm-net: %@";
 "screenshot.status.copied" = "Copied to the clipboard.";
 "screenshot.status.failed" = "The screenshot failed. Try again.";

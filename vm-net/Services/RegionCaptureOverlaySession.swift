@@ -322,14 +322,20 @@ final class RegionCaptureOverlaySession {
             hasEditableSelection
             && interaction == nil
         let showsHandles = hasEditableSelection && !isDrawingInteraction
+        let showsSelectionMask =
+            currentSelection != nil
+            && !isDefaultFullscreenSelection
         let usesCrosshairCursor =
             !(currentSelection.map(isValid(selection:)) ?? false)
             || isDefaultFullscreenSelection
+        let allowsOverlayKeyFocus = !hasEditableSelection
 
         overlayControllers.forEach { controller in
             controller.selectionRect = rect
             controller.showsHandles = showsHandles
+            controller.showsSelectionMask = showsSelectionMask
             controller.usesCrosshairCursor = usesCrosshairCursor
+            controller.allowsKeyFocus = allowsOverlayKeyFocus
         }
 
         if let currentSelection, canShowEditingControls {
@@ -570,9 +576,21 @@ private final class RegionCaptureOverlayController: NSWindowController {
         }
     }
 
+    var showsSelectionMask = false {
+        didSet {
+            overlayView.showsSelectionMask = showsSelectionMask
+        }
+    }
+
     var usesCrosshairCursor = true {
         didSet {
             overlayView.usesCrosshairCursor = usesCrosshairCursor
+        }
+    }
+
+    var allowsKeyFocus = true {
+        didSet {
+            (window as? RegionCaptureOverlayWindow)?.allowsKeyFocus = allowsKeyFocus
         }
     }
 
@@ -639,7 +657,9 @@ private final class RegionCaptureOverlayController: NSWindowController {
 
 private final class RegionCaptureOverlayWindow: NSWindow {
 
-    override var canBecomeKey: Bool { true }
+    var allowsKeyFocus = true
+
+    override var canBecomeKey: Bool { allowsKeyFocus }
     override var canBecomeMain: Bool { false }
 }
 
@@ -648,6 +668,7 @@ private final class RegionCaptureOverlayView: NSView {
     private enum Appearance {
         static let strokeColor = NSColor.systemBlue
         static let strokeWidth: CGFloat = 2
+        static let selectionMaskColor = NSColor.black.withAlphaComponent(0.38)
         static let handleDiameter: CGFloat = 6
         static let handleBorderWidth: CGFloat = 2
         static let labelInset: CGFloat = 8
@@ -676,6 +697,12 @@ private final class RegionCaptureOverlayView: NSView {
     }
 
     var showsHandles = false {
+        didSet {
+            needsDisplay = true
+        }
+    }
+
+    var showsSelectionMask = false {
         didSet {
             needsDisplay = true
         }
@@ -744,6 +771,8 @@ private final class RegionCaptureOverlayView: NSView {
             dy: -screenFrame.minY
         )
 
+        drawSelectionMask(excluding: localRect)
+
         guard localRect.intersects(bounds) else { return }
 
         let strokePath = NSBezierPath(rect: localRect)
@@ -758,9 +787,28 @@ private final class RegionCaptureOverlayView: NSView {
         drawMeasurementLabel(for: localRect)
     }
 
+    private func drawSelectionMask(excluding localRect: CGRect) {
+        guard showsSelectionMask else { return }
+
+        let visibleSelectionRect = localRect.intersection(bounds)
+        if visibleSelectionRect.isNull || visibleSelectionRect.isEmpty {
+            Appearance.selectionMaskColor.setFill()
+            bounds.fill()
+            return
+        }
+
+        let path = NSBezierPath(rect: bounds)
+        path.appendRect(visibleSelectionRect)
+        path.windingRule = .evenOdd
+        Appearance.selectionMaskColor.setFill()
+        path.fill()
+    }
+
     override func mouseDown(with event: NSEvent) {
-        window?.makeKey()
-        window?.makeFirstResponder(self)
+        if window?.canBecomeKey == true {
+            window?.makeKey()
+            window?.makeFirstResponder(self)
+        }
         isDragging = true
         pointerDown?(convertToGlobal(point: event.locationInWindow))
     }
