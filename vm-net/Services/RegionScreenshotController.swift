@@ -139,7 +139,7 @@ final class RegionScreenshotController: ObservableObject {
 
     private func captureSelection(
         _ selection: RegionSelection,
-        annotations: [RegionCaptureArrowAnnotation],
+        annotations: [RegionCaptureAnnotation],
         action: RegionCaptureCommitAction
     ) async {
         let request = captureRequest(
@@ -209,7 +209,7 @@ final class RegionScreenshotController: ObservableObject {
 
     private func captureRequest(
         for selection: RegionSelection,
-        annotations: [RegionCaptureArrowAnnotation]
+        annotations: [RegionCaptureAnnotation]
     ) -> RegionCaptureRequest {
         let activeScreen = screenContainingPoint(selection.rect.origin)
             ?? selection.originScreen
@@ -251,7 +251,7 @@ private struct RegionCaptureRequest: Sendable {
     let rect: CGRect
     let displayID: CGDirectDisplayID?
     let screenFrame: CGRect
-    let annotations: [RegionCaptureArrowAnnotation]
+    let annotations: [RegionCaptureAnnotation]
 }
 
 private struct RegionCaptureResult: Sendable {
@@ -349,7 +349,7 @@ private enum RegionScreenshotPipeline {
     }
 
     private static func renderAnnotations(
-        _ annotations: [RegionCaptureArrowAnnotation],
+        _ annotations: [RegionCaptureAnnotation],
         onto image: CGImage,
         selectionRect: CGRect
     ) throws -> CGImage {
@@ -388,12 +388,29 @@ private enum RegionScreenshotPipeline {
         let scale = max((horizontalScale + verticalScale) * 0.5, 1)
 
         for annotation in annotations {
-            drawArrow(
-                annotation,
-                in: drawingRect,
-                scale: scale,
-                context: context
-            )
+            switch annotation {
+            case let .rectangle(rectangle):
+                drawRectangle(
+                    rectangle,
+                    in: drawingRect,
+                    scale: scale,
+                    context: context
+                )
+            case let .ellipse(ellipse):
+                drawEllipse(
+                    ellipse,
+                    in: drawingRect,
+                    scale: scale,
+                    context: context
+                )
+            case let .arrow(arrow):
+                drawArrow(
+                    arrow,
+                    in: drawingRect,
+                    scale: scale,
+                    context: context
+                )
+            }
         }
 
         guard let renderedImage = context.makeImage() else {
@@ -401,6 +418,44 @@ private enum RegionScreenshotPipeline {
         }
 
         return renderedImage
+    }
+
+    private static func drawRectangle(
+        _ annotation: RegionCaptureRectangleAnnotation,
+        in rect: CGRect,
+        scale: CGFloat,
+        context: CGContext
+    ) {
+        let rectangle = annotation.rect(in: rect)
+        guard rectangle.width > 1, rectangle.height > 1 else { return }
+
+        let lineWidth = annotation.style.size.outlineLineWidth * scale
+        let halfLineWidth = lineWidth * 0.5
+        let strokeRect = rectangle.insetBy(dx: halfLineWidth, dy: halfLineWidth)
+        guard strokeRect.width > 0, strokeRect.height > 0 else { return }
+
+        context.setStrokeColor(annotation.style.color.cgColor)
+        context.setLineWidth(lineWidth)
+        context.stroke(strokeRect)
+    }
+
+    private static func drawEllipse(
+        _ annotation: RegionCaptureEllipseAnnotation,
+        in rect: CGRect,
+        scale: CGFloat,
+        context: CGContext
+    ) {
+        let ellipseRect = annotation.rect(in: rect)
+        guard ellipseRect.width > 1, ellipseRect.height > 1 else { return }
+
+        let lineWidth = annotation.style.size.outlineLineWidth * scale
+        let halfLineWidth = lineWidth * 0.5
+        let strokeRect = ellipseRect.insetBy(dx: halfLineWidth, dy: halfLineWidth)
+        guard strokeRect.width > 0, strokeRect.height > 0 else { return }
+
+        context.setStrokeColor(annotation.style.color.cgColor)
+        context.setLineWidth(lineWidth)
+        context.strokeEllipse(in: strokeRect)
     }
 
     private static func drawArrow(

@@ -243,6 +243,14 @@
 "screenshot.toolbar.arrowColor.green" = "绿色箭头";
 "screenshot.toolbar.arrowColor.blue" = "蓝色箭头";
 "screenshot.toolbar.arrowColor.gray" = "灰色箭头";
+"screenshot.toolbar.strokeSize.small" = "细线";
+"screenshot.toolbar.strokeSize.medium" = "中等线宽";
+"screenshot.toolbar.strokeSize.large" = "粗线";
+"screenshot.toolbar.strokeColor.red" = "红色";
+"screenshot.toolbar.strokeColor.yellow" = "黄色";
+"screenshot.toolbar.strokeColor.green" = "绿色";
+"screenshot.toolbar.strokeColor.blue" = "蓝色";
+"screenshot.toolbar.strokeColor.gray" = "灰色";
 "screenshot.status.saved" = "截图已保存到“图片/vm-net”：%@";
 "screenshot.status.copied" = "截图已复制到剪贴板，可直接粘贴。";
 "screenshot.status.failed" = "截图失败，请稍后重试。";

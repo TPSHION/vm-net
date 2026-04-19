@@ -243,6 +243,14 @@
 "screenshot.toolbar.arrowColor.green" = "Green Arrow";
 "screenshot.toolbar.arrowColor.blue" = "Blue Arrow";
 "screenshot.toolbar.arrowColor.gray" = "Gray Arrow";
+"screenshot.toolbar.strokeSize.small" = "Small Stroke";
+"screenshot.toolbar.strokeSize.medium" = "Medium Stroke";
+"screenshot.toolbar.strokeSize.large" = "Large Stroke";
+"screenshot.toolbar.strokeColor.red" = "Red";
+"screenshot.toolbar.strokeColor.yellow" = "Yellow";
+"screenshot.toolbar.strokeColor.green" = "Green";
+"screenshot.toolbar.strokeColor.blue" = "Blue";
+"screenshot.toolbar.strokeColor.gray" = "Gray";
 "screenshot.status.saved" = "Saved to Pictures/vm-net: %@";
 "screenshot.status.copied" = "Copied to the clipboard and ready to paste.";
 "screenshot.status.failed" = "The screenshot failed. Try again.";

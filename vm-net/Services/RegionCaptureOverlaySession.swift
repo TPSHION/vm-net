@@ -14,10 +14,12 @@ enum RegionCaptureCommitAction: Sendable {
 }
 
 enum RegionCaptureTool: Equatable {
+    case rectangle
+    case ellipse
     case arrow
 }
 
-enum RegionCaptureArrowSize: CaseIterable, Equatable, Sendable {
+enum RegionCaptureStrokeSize: CaseIterable, Equatable, Sendable {
     case small
     case medium
     case large
@@ -30,6 +32,17 @@ enum RegionCaptureArrowSize: CaseIterable, Equatable, Sendable {
             return 6
         case .large:
             return 8
+        }
+    }
+
+    var outlineLineWidth: CGFloat {
+        switch self {
+        case .small:
+            return 2
+        case .medium:
+            return 3
+        case .large:
+            return 4
         }
     }
 
@@ -47,16 +60,16 @@ enum RegionCaptureArrowSize: CaseIterable, Equatable, Sendable {
     var accessibilityLabel: String {
         switch self {
         case .small:
-            return L10n.tr("screenshot.toolbar.arrowSize.small")
+            return L10n.tr("screenshot.toolbar.strokeSize.small")
         case .medium:
-            return L10n.tr("screenshot.toolbar.arrowSize.medium")
+            return L10n.tr("screenshot.toolbar.strokeSize.medium")
         case .large:
-            return L10n.tr("screenshot.toolbar.arrowSize.large")
+            return L10n.tr("screenshot.toolbar.strokeSize.large")
         }
     }
 }
 
-enum RegionCaptureArrowColor: CaseIterable, Equatable, Sendable {
+enum RegionCaptureAnnotationColor: CaseIterable, Equatable, Sendable {
     case red
     case yellow
     case green
@@ -85,24 +98,24 @@ enum RegionCaptureArrowColor: CaseIterable, Equatable, Sendable {
     var accessibilityLabel: String {
         switch self {
         case .red:
-            return L10n.tr("screenshot.toolbar.arrowColor.red")
+            return L10n.tr("screenshot.toolbar.strokeColor.red")
         case .yellow:
-            return L10n.tr("screenshot.toolbar.arrowColor.yellow")
+            return L10n.tr("screenshot.toolbar.strokeColor.yellow")
         case .green:
-            return L10n.tr("screenshot.toolbar.arrowColor.green")
+            return L10n.tr("screenshot.toolbar.strokeColor.green")
         case .blue:
-            return L10n.tr("screenshot.toolbar.arrowColor.blue")
+            return L10n.tr("screenshot.toolbar.strokeColor.blue")
         case .gray:
-            return L10n.tr("screenshot.toolbar.arrowColor.gray")
+            return L10n.tr("screenshot.toolbar.strokeColor.gray")
         }
     }
 }
 
-struct RegionCaptureArrowStyle: Equatable, Sendable {
-    var size: RegionCaptureArrowSize
-    var color: RegionCaptureArrowColor
+struct RegionCaptureAnnotationStyle: Equatable, Sendable {
+    var size: RegionCaptureStrokeSize
+    var color: RegionCaptureAnnotationColor
 
-    static let `default` = RegionCaptureArrowStyle(
+    static let `default` = RegionCaptureAnnotationStyle(
         size: .medium,
         color: .blue
     )
@@ -125,13 +138,13 @@ struct RegionCaptureNormalizedPoint: Equatable, Sendable {
 struct RegionCaptureArrowAnnotation: Equatable, Sendable {
     let start: RegionCaptureNormalizedPoint
     let end: RegionCaptureNormalizedPoint
-    let style: RegionCaptureArrowStyle
+    let style: RegionCaptureAnnotationStyle
 
     init(
         startPoint: CGPoint,
         endPoint: CGPoint,
         in selectionRect: CGRect,
-        style: RegionCaptureArrowStyle
+        style: RegionCaptureAnnotationStyle
     ) {
         self.start = Self.normalized(startPoint, in: selectionRect)
         self.end = Self.normalized(endPoint, in: selectionRect)
@@ -152,7 +165,7 @@ struct RegionCaptureArrowAnnotation: Equatable, Sendable {
         return hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y)
     }
 
-    private static func normalized(
+    static func normalized(
         _ point: CGPoint,
         in rect: CGRect
     ) -> RegionCaptureNormalizedPoint {
@@ -167,6 +180,90 @@ struct RegionCaptureArrowAnnotation: Equatable, Sendable {
     }
 }
 
+struct RegionCaptureRectangleAnnotation: Equatable, Sendable {
+    let start: RegionCaptureNormalizedPoint
+    let end: RegionCaptureNormalizedPoint
+    let style: RegionCaptureAnnotationStyle
+
+    init(
+        startPoint: CGPoint,
+        endPoint: CGPoint,
+        in selectionRect: CGRect,
+        style: RegionCaptureAnnotationStyle
+    ) {
+        self.start = RegionCaptureArrowAnnotation.normalized(
+            startPoint,
+            in: selectionRect
+        )
+        self.end = RegionCaptureArrowAnnotation.normalized(
+            endPoint,
+            in: selectionRect
+        )
+        self.style = style
+    }
+
+    func rect(in selectionRect: CGRect) -> CGRect {
+        let startPoint = start.point(in: selectionRect)
+        let endPoint = end.point(in: selectionRect)
+        return CGRect(
+            x: min(startPoint.x, endPoint.x),
+            y: min(startPoint.y, endPoint.y),
+            width: abs(endPoint.x - startPoint.x),
+            height: abs(endPoint.y - startPoint.y)
+        )
+    }
+
+    func smallestDimension(in selectionRect: CGRect) -> CGFloat {
+        let rect = rect(in: selectionRect)
+        return min(rect.width, rect.height)
+    }
+}
+
+struct RegionCaptureEllipseAnnotation: Equatable, Sendable {
+    let start: RegionCaptureNormalizedPoint
+    let end: RegionCaptureNormalizedPoint
+    let style: RegionCaptureAnnotationStyle
+
+    init(
+        startPoint: CGPoint,
+        endPoint: CGPoint,
+        in selectionRect: CGRect,
+        style: RegionCaptureAnnotationStyle
+    ) {
+        self.start = RegionCaptureArrowAnnotation.normalized(
+            startPoint,
+            in: selectionRect
+        )
+        self.end = RegionCaptureArrowAnnotation.normalized(
+            endPoint,
+            in: selectionRect
+        )
+        self.style = style
+    }
+
+    func rect(in selectionRect: CGRect) -> CGRect {
+        let startPoint = start.point(in: selectionRect)
+        let endPoint = end.point(in: selectionRect)
+        return CGRect(
+            x: min(startPoint.x, endPoint.x),
+            y: min(startPoint.y, endPoint.y),
+            width: abs(endPoint.x - startPoint.x),
+            height: abs(endPoint.y - startPoint.y)
+        )
+    }
+
+    func smallestDimension(in selectionRect: CGRect) -> CGFloat {
+        let rect = rect(in: selectionRect)
+        return min(rect.width, rect.height)
+    }
+}
+
+enum RegionCaptureAnnotation: Equatable, Sendable {
+    case rectangle(RegionCaptureRectangleAnnotation)
+    case ellipse(RegionCaptureEllipseAnnotation)
+    case arrow(RegionCaptureArrowAnnotation)
+}
+
 // Overlay architecture adapted from ScrollSnap (MIT):
 // https://github.com/Brkgng/ScrollSnap
 @MainActor
@@ -174,6 +271,7 @@ final class RegionCaptureOverlaySession {
 
     private enum Layout {
         static let minimumSelectionSize: CGFloat = 8
+        static let minimumShapeDimension: CGFloat = 8
         static let minimumArrowLength: CGFloat = 10
     }
 
@@ -195,6 +293,14 @@ final class RegionCaptureOverlaySession {
             initialRect: CGRect,
             screen: NSScreen
         )
+        case drawingRectangle(
+            anchor: CGPoint,
+            screen: NSScreen
+        )
+        case drawingEllipse(
+            anchor: CGPoint,
+            screen: NSScreen
+        )
         case drawingArrow(
             anchor: CGPoint,
             screen: NSScreen
@@ -205,7 +311,7 @@ final class RegionCaptureOverlaySession {
     private let toolbarController = RegionCaptureToolbarController()
     private let onCommit: (
         RegionSelection,
-        [RegionCaptureArrowAnnotation],
+        [RegionCaptureAnnotation],
         RegionCaptureCommitAction
     ) -> Void
     private let onCancel: () -> Void
@@ -215,15 +321,36 @@ final class RegionCaptureOverlaySession {
     private var interaction: Interaction?
     private var isDefaultFullscreenSelection = false
     private var activeTool: RegionCaptureTool?
-    private var arrowStyle = RegionCaptureArrowStyle.default
-    private var arrowAnnotations: [RegionCaptureArrowAnnotation] = []
-    private var draftArrow: RegionCaptureArrowAnnotation?
+    private var annotationStyle = RegionCaptureAnnotationStyle.default
+    private var annotations: [RegionCaptureAnnotation] = []
+    private var draftAnnotation: RegionCaptureAnnotation?
+
+    private var draftArrowAnnotation: RegionCaptureArrowAnnotation? {
+        guard case let .arrow(annotation)? = draftAnnotation else {
+            return nil
+        }
+        return annotation
+    }
+
+    private var draftRectangleAnnotation: RegionCaptureRectangleAnnotation? {
+        guard case let .rectangle(annotation)? = draftAnnotation else {
+            return nil
+        }
+        return annotation
+    }
+
+    private var draftEllipseAnnotation: RegionCaptureEllipseAnnotation? {
+        guard case let .ellipse(annotation)? = draftAnnotation else {
+            return nil
+        }
+        return annotation
+    }
 
     init(
         screens: [NSScreen],
         onCommit: @escaping (
             RegionSelection,
-            [RegionCaptureArrowAnnotation],
+            [RegionCaptureAnnotation],
             RegionCaptureCommitAction
         ) -> Void,
         onCancel: @escaping () -> Void
@@ -243,17 +370,23 @@ final class RegionCaptureOverlaySession {
         toolbarController.cancelHandler = { [weak self] in
             self?.cancel()
         }
+        toolbarController.rectangleToolHandler = { [weak self] in
+            self?.toggleRectangleTool()
+        }
+        toolbarController.ellipseToolHandler = { [weak self] in
+            self?.toggleEllipseTool()
+        }
         toolbarController.arrowToolHandler = { [weak self] in
             self?.toggleArrowTool()
         }
-        toolbarController.arrowSizeHandler = { [weak self] size in
-            self?.setArrowSize(size)
+        toolbarController.strokeSizeHandler = { [weak self] size in
+            self?.setStrokeSize(size)
         }
-        toolbarController.arrowColorHandler = { [weak self] color in
-            self?.setArrowColor(color)
+        toolbarController.strokeColorHandler = { [weak self] color in
+            self?.setStrokeColor(color)
         }
         toolbarController.undoHandler = { [weak self] in
-            self?.undoLastArrow()
+            self?.undoLastAnnotation()
         }
 
         for controller in overlayControllers {
@@ -353,6 +486,52 @@ final class RegionCaptureOverlaySession {
         }
 
         if
+            activeTool == .rectangle,
+            let selection = currentSelection,
+            selection.originScreen == screen,
+            selection.rect.contains(clampedPoint),
+            !isDefaultFullscreenSelection
+        {
+            let anchor = clamp(clampedPoint, to: selection.rect)
+            interaction = .drawingRectangle(
+                anchor: anchor,
+                screen: screen
+            )
+            draftAnnotation = .rectangle(
+                makeRectangleAnnotation(
+                from: anchor,
+                to: anchor,
+                in: selection.rect
+                )
+            )
+            renderSelectionUI()
+            return
+        }
+
+        if
+            activeTool == .ellipse,
+            let selection = currentSelection,
+            selection.originScreen == screen,
+            selection.rect.contains(clampedPoint),
+            !isDefaultFullscreenSelection
+        {
+            let anchor = clamp(clampedPoint, to: selection.rect)
+            interaction = .drawingEllipse(
+                anchor: anchor,
+                screen: screen
+            )
+            draftAnnotation = .ellipse(
+                makeEllipseAnnotation(
+                    from: anchor,
+                    to: anchor,
+                    in: selection.rect
+                )
+            )
+            renderSelectionUI()
+            return
+        }
+
+        if
             activeTool == .arrow,
             let selection = currentSelection,
             selection.originScreen == screen,
@@ -364,10 +543,12 @@ final class RegionCaptureOverlaySession {
                 anchor: anchor,
                 screen: screen
             )
-            draftArrow = makeArrowAnnotation(
+            draftAnnotation = .arrow(
+                makeArrowAnnotation(
                 from: anchor,
                 to: anchor,
                 in: selection.rect
+                )
             )
             renderSelectionUI()
             return
@@ -447,6 +628,42 @@ final class RegionCaptureOverlaySession {
             currentSelection = RegionSelection(rect: rect, originScreen: screen)
             renderSelectionUI()
 
+        case let .drawingRectangle(anchor, screen):
+            guard
+                let selection = currentSelection,
+                selection.originScreen == screen
+            else {
+                return
+            }
+
+            let endPoint = clamp(point, to: selection.rect)
+            draftAnnotation = .rectangle(
+                makeRectangleAnnotation(
+                from: anchor,
+                to: endPoint,
+                in: selection.rect
+                )
+            )
+            renderSelectionUI()
+
+        case let .drawingEllipse(anchor, screen):
+            guard
+                let selection = currentSelection,
+                selection.originScreen == screen
+            else {
+                return
+            }
+
+            let endPoint = clamp(point, to: selection.rect)
+            draftAnnotation = .ellipse(
+                makeEllipseAnnotation(
+                    from: anchor,
+                    to: endPoint,
+                    in: selection.rect
+                )
+            )
+            renderSelectionUI()
+
         case let .drawingArrow(anchor, screen):
             guard
                 let selection = currentSelection,
@@ -456,10 +673,12 @@ final class RegionCaptureOverlaySession {
             }
 
             let endPoint = clamp(point, to: selection.rect)
-            draftArrow = makeArrowAnnotation(
+            draftAnnotation = .arrow(
+                makeArrowAnnotation(
                 from: anchor,
                 to: endPoint,
                 in: selection.rect
+                )
             )
             renderSelectionUI()
         }
@@ -499,16 +718,40 @@ final class RegionCaptureOverlaySession {
                 isDefaultFullscreen: false
             )
 
+        case .drawingRectangle:
+            if
+                let currentSelection,
+                let rectangle = draftRectangleAnnotation,
+                rectangle.smallestDimension(in: currentSelection.rect)
+                    >= Layout.minimumShapeDimension
+            {
+                annotations.append(.rectangle(rectangle))
+            }
+            self.draftAnnotation = nil
+            renderSelectionUI()
+
+        case .drawingEllipse:
+            if
+                let currentSelection,
+                let ellipse = draftEllipseAnnotation,
+                ellipse.smallestDimension(in: currentSelection.rect)
+                    >= Layout.minimumShapeDimension
+            {
+                annotations.append(.ellipse(ellipse))
+            }
+            self.draftAnnotation = nil
+            renderSelectionUI()
+
         case .drawingArrow:
             if
                 let currentSelection,
-                let draftArrow,
-                draftArrow.length(in: currentSelection.rect)
+                let arrow = draftArrowAnnotation,
+                arrow.length(in: currentSelection.rect)
                     >= Layout.minimumArrowLength
             {
-                arrowAnnotations.append(draftArrow)
+                annotations.append(.arrow(arrow))
             }
-            self.draftArrow = nil
+            self.draftAnnotation = nil
             renderSelectionUI()
         }
     }
@@ -521,9 +764,9 @@ final class RegionCaptureOverlaySession {
             return
         }
 
-        let annotations = arrowAnnotations
+        let committedAnnotations = self.annotations
         teardown()
-        onCommit(currentSelection, annotations, action)
+        onCommit(currentSelection, committedAnnotations, action)
     }
 
     private func cancel() {
@@ -540,8 +783,8 @@ final class RegionCaptureOverlaySession {
 
         if selection == nil || isDefaultFullscreen {
             activeTool = nil
-            arrowAnnotations.removeAll()
-            draftArrow = nil
+            annotations.removeAll()
+            draftAnnotation = nil
         }
 
         renderSelectionUI()
@@ -552,16 +795,27 @@ final class RegionCaptureOverlaySession {
         let hasEditableSelection =
             (currentSelection.map(isValid(selection:)) ?? false)
             && !isDefaultFullscreenSelection
-        let isArrowInteraction: Bool
-        if case .drawingArrow = interaction {
-            isArrowInteraction = true
-        } else {
-            isArrowInteraction = false
+        let isAnnotationInteraction: Bool
+        switch interaction {
+        case .drawingRectangle?, .drawingEllipse?, .drawingArrow?:
+            isAnnotationInteraction = true
+        default:
+            isAnnotationInteraction = false
         }
+        let activeAnnotationTool = activeTool
+        let isRectangleToolActive = activeAnnotationTool == .rectangle
+        let isEllipseToolActive = activeAnnotationTool == .ellipse
+        let isArrowToolActive = activeAnnotationTool == .arrow
+        let canUndo = !annotations.isEmpty
+        let secondaryToolVisible = activeAnnotationTool != nil
+        let selectedRectangle = isRectangleToolActive
+        let selectedEllipse = isEllipseToolActive
+        let selectedArrow = isArrowToolActive
+
         let canShowEditingControls =
             hasEditableSelection
             && interaction == nil
-        let showsHandles = hasEditableSelection && !isArrowInteraction
+        let showsHandles = hasEditableSelection && !isAnnotationInteraction
         let showsSelectionMask =
             currentSelection != nil
             && !isDefaultFullscreenSelection
@@ -569,7 +823,6 @@ final class RegionCaptureOverlaySession {
             !(currentSelection.map(isValid(selection:)) ?? false)
             || isDefaultFullscreenSelection
         let allowsOverlayKeyFocus = true
-        let isArrowToolActive = activeTool == .arrow
 
         overlayControllers.forEach { controller in
             controller.selectionRect = rect
@@ -577,25 +830,29 @@ final class RegionCaptureOverlaySession {
             controller.showsSelectionMask = showsSelectionMask
             controller.usesCrosshairCursor = usesCrosshairCursor
             controller.allowsKeyFocus = allowsOverlayKeyFocus
-            controller.usesArrowToolCursor =
-                isArrowToolActive
+            controller.usesAnnotationToolCursor =
+                activeAnnotationTool != nil
                 && currentSelection?.originScreen == controller.screen
             controller.annotations =
                 currentSelection?.originScreen == controller.screen
-                ? arrowAnnotations
+                ? annotations
                 : []
             controller.draftAnnotation =
                 currentSelection?.originScreen == controller.screen
-                ? draftArrow
+                ? draftAnnotation
                 : nil
         }
 
         toolbarController.update(
             state: .init(
-                isArrowToolSelected: isArrowToolActive,
-                selectedArrowSize: arrowStyle.size,
-                selectedArrowColor: arrowStyle.color,
-                canUndo: !arrowAnnotations.isEmpty
+                isRectangleToolSelected: selectedRectangle,
+                isEllipseToolSelected: selectedEllipse,
+                isArrowToolSelected: selectedArrow,
+                selectedStrokeSize: annotationStyle.size,
+                selectedStrokeColor: annotationStyle.color,
+                canUndo: canUndo,
+                showsSecondaryToolbar: secondaryToolVisible,
+                highlightedTool: activeAnnotationTool
             )
         )
 
@@ -624,23 +881,43 @@ final class RegionCaptureOverlaySession {
         }
 
         activeTool = activeTool == .arrow ? nil : .arrow
-        draftArrow = nil
+        draftAnnotation = nil
         renderSelectionUI()
     }
 
-    private func setArrowSize(_ size: RegionCaptureArrowSize) {
-        arrowStyle.size = size
+    private func toggleRectangleTool() {
+        guard (currentSelection.map(isValid(selection:)) ?? false) else {
+            return
+        }
+
+        activeTool = activeTool == .rectangle ? nil : .rectangle
+        draftAnnotation = nil
         renderSelectionUI()
     }
 
-    private func setArrowColor(_ color: RegionCaptureArrowColor) {
-        arrowStyle.color = color
+    private func toggleEllipseTool() {
+        guard (currentSelection.map(isValid(selection:)) ?? false) else {
+            return
+        }
+
+        activeTool = activeTool == .ellipse ? nil : .ellipse
+        draftAnnotation = nil
         renderSelectionUI()
     }
 
-    private func undoLastArrow() {
-        guard !arrowAnnotations.isEmpty else { return }
-        arrowAnnotations.removeLast()
+    private func setStrokeSize(_ size: RegionCaptureStrokeSize) {
+        annotationStyle.size = size
+        renderSelectionUI()
+    }
+
+    private func setStrokeColor(_ color: RegionCaptureAnnotationColor) {
+        annotationStyle.color = color
+        renderSelectionUI()
+    }
+
+    private func undoLastAnnotation() {
+        guard !annotations.isEmpty else { return }
+        annotations.removeLast()
         renderSelectionUI()
     }
 
@@ -653,7 +930,33 @@ final class RegionCaptureOverlaySession {
             startPoint: startPoint,
             endPoint: endPoint,
             in: selectionRect,
-            style: arrowStyle
+            style: annotationStyle
+        )
+    }
+
+    private func makeRectangleAnnotation(
+        from startPoint: CGPoint,
+        to endPoint: CGPoint,
+        in selectionRect: CGRect
+    ) -> RegionCaptureRectangleAnnotation {
+        RegionCaptureRectangleAnnotation(
+            startPoint: startPoint,
+            endPoint: endPoint,
+            in: selectionRect,
+            style: annotationStyle
+        )
+    }
+
+    private func makeEllipseAnnotation(
+        from startPoint: CGPoint,
+        to endPoint: CGPoint,
+        in selectionRect: CGRect
+    ) -> RegionCaptureEllipseAnnotation {
+        RegionCaptureEllipseAnnotation(
+            startPoint: startPoint,
+            endPoint: endPoint,
+            in: selectionRect,
+            style: annotationStyle
         )
     }
 
@@ -895,20 +1198,20 @@ private final class RegionCaptureOverlayController: NSWindowController {
         }
     }
 
-    var usesArrowToolCursor = false {
+    var usesAnnotationToolCursor = false {
         didSet {
-            overlayView.usesArrowToolCursor = usesArrowToolCursor
+            overlayView.usesAnnotationToolCursor = usesAnnotationToolCursor
             window?.invalidateCursorRects(for: overlayView)
         }
     }
 
-    var annotations: [RegionCaptureArrowAnnotation] = [] {
+    var annotations: [RegionCaptureAnnotation] = [] {
         didSet {
             overlayView.annotations = annotations
         }
     }
 
-    var draftAnnotation: RegionCaptureArrowAnnotation? {
+    var draftAnnotation: RegionCaptureAnnotation? {
         didSet {
             overlayView.draftAnnotation = draftAnnotation
         }
@@ -1035,19 +1338,19 @@ private final class RegionCaptureOverlayView: NSView {
         }
     }
 
-    var usesArrowToolCursor = false {
+    var usesAnnotationToolCursor = false {
         didSet {
             window?.invalidateCursorRects(for: self)
         }
     }
 
-    var annotations: [RegionCaptureArrowAnnotation] = [] {
+    var annotations: [RegionCaptureAnnotation] = [] {
         didSet {
             needsDisplay = true
         }
     }
 
-    var draftAnnotation: RegionCaptureArrowAnnotation? {
+    var draftAnnotation: RegionCaptureAnnotation? {
         didSet {
             needsDisplay = true
         }
@@ -1089,7 +1392,7 @@ private final class RegionCaptureOverlayView: NSView {
 
         guard localRect.intersects(bounds) else { return }
 
-        if usesArrowToolCursor {
+        if usesAnnotationToolCursor {
             addCursorRect(localRect, cursor: .crosshair)
         }
 
@@ -1171,14 +1474,69 @@ private final class RegionCaptureOverlayView: NSView {
         clipPath.addClip()
 
         for annotation in annotations {
-            drawArrow(annotation, in: localRect, alpha: 1)
+            draw(annotation, in: localRect, alpha: 1)
         }
 
         if let draftAnnotation {
-            drawArrow(draftAnnotation, in: localRect, alpha: 1)
+            draw(draftAnnotation, in: localRect, alpha: 1)
         }
 
         NSGraphicsContext.restoreGraphicsState()
+    }
+
+    private func draw(
+        _ annotation: RegionCaptureAnnotation,
+        in rect: CGRect,
+        alpha: CGFloat
+    ) {
+        switch annotation {
+        case let .rectangle(rectangle):
+            drawRectangle(rectangle, in: rect, alpha: alpha)
+        case let .ellipse(ellipse):
+            drawEllipse(ellipse, in: rect, alpha: alpha)
+        case let .arrow(arrow):
+            drawArrow(arrow, in: rect, alpha: alpha)
+        }
+    }
+
+    private func drawRectangle(
+        _ annotation: RegionCaptureRectangleAnnotation,
+        in rect: CGRect,
+        alpha: CGFloat
+    ) {
+        let boxRect = annotation.rect(in: rect)
+        guard boxRect.width > 1, boxRect.height > 1 else { return }
+
+        let lineWidth = annotation.style.size.outlineLineWidth
+        let halfStroke = lineWidth * 0.5
+        let strokeRect = boxRect.insetBy(dx: halfStroke, dy: halfStroke)
+        guard strokeRect.width > 0, strokeRect.height > 0 else { return }
+
+        let color = annotation.style.color.overlayColor.withAlphaComponent(alpha)
+        let boxPath = NSBezierPath(rect: strokeRect)
+        boxPath.lineWidth = lineWidth
+        color.setStroke()
+        boxPath.stroke()
+    }
+
+    private func drawEllipse(
+        _ annotation: RegionCaptureEllipseAnnotation,
+        in rect: CGRect,
+        alpha: CGFloat
+    ) {
+        let ellipseRect = annotation.rect(in: rect)
+        guard ellipseRect.width > 1, ellipseRect.height > 1 else { return }
+
+        let lineWidth = annotation.style.size.outlineLineWidth
+        let halfStroke = lineWidth * 0.5
+        let strokeRect = ellipseRect.insetBy(dx: halfStroke, dy: halfStroke)
+        guard strokeRect.width > 0, strokeRect.height > 0 else { return }
+
+        let color = annotation.style.color.overlayColor.withAlphaComponent(alpha)
+        let ellipsePath = NSBezierPath(ovalIn: strokeRect)
+        ellipsePath.lineWidth = lineWidth
+        color.setStroke()
+        ellipsePath.stroke()
     }
 
     private func drawArrow(

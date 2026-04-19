@@ -11,10 +11,14 @@ import AppKit
 final class RegionCaptureToolbarController: NSWindowController {
 
     struct State: Equatable {
+        var isRectangleToolSelected: Bool
+        var isEllipseToolSelected: Bool
         var isArrowToolSelected: Bool
-        var selectedArrowSize: RegionCaptureArrowSize
-        var selectedArrowColor: RegionCaptureArrowColor
+        var selectedStrokeSize: RegionCaptureStrokeSize
+        var selectedStrokeColor: RegionCaptureAnnotationColor
         var canUndo: Bool
+        var showsSecondaryToolbar: Bool
+        var highlightedTool: RegionCaptureTool?
     }
 
     private enum Layout {
@@ -36,8 +40,6 @@ final class RegionCaptureToolbarController: NSWindowController {
         static let itemMaskCornerRadius: CGFloat = 7
         static let symbolPointSize: CGFloat = 17
         static let compactActionSymbolPointSize: CGFloat = 15
-        static let notchWidth: CGFloat = 16
-        static let notchHeight: CGFloat = 10
     }
 
     private enum Color {
@@ -104,16 +106,22 @@ final class RegionCaptureToolbarController: NSWindowController {
     var saveToFileHandler: (() -> Void)?
     var copyToClipboardHandler: (() -> Void)?
     var cancelHandler: (() -> Void)?
+    var rectangleToolHandler: (() -> Void)?
+    var ellipseToolHandler: (() -> Void)?
     var arrowToolHandler: (() -> Void)?
-    var arrowSizeHandler: ((RegionCaptureArrowSize) -> Void)?
-    var arrowColorHandler: ((RegionCaptureArrowColor) -> Void)?
+    var strokeSizeHandler: ((RegionCaptureStrokeSize) -> Void)?
+    var strokeColorHandler: ((RegionCaptureAnnotationColor) -> Void)?
     var undoHandler: (() -> Void)?
 
     private var state = State(
+        isRectangleToolSelected: false,
+        isEllipseToolSelected: false,
         isArrowToolSelected: false,
-        selectedArrowSize: .medium,
-        selectedArrowColor: .blue,
-        canUndo: false
+        selectedStrokeSize: .medium,
+        selectedStrokeColor: .blue,
+        canUndo: false,
+        showsSecondaryToolbar: false,
+        highlightedTool: nil
     )
     private var currentSelection: RegionSelection?
 
@@ -123,7 +131,16 @@ final class RegionCaptureToolbarController: NSWindowController {
     private let primaryStackView = NSStackView()
     private let secondaryBackgroundView = NSView()
     private let secondaryStackView = NSStackView()
-    private let secondaryNotchView = RegionCaptureToolbarNotchView()
+
+    private lazy var rectangleToolButton = makeSelectableToolButton(
+        for: .rectangle,
+        action: #selector(handleRectangleTool)
+    )
+
+    private lazy var ellipseToolButton = makeSelectableToolButton(
+        for: .ellipse,
+        action: #selector(handleEllipseTool)
+    )
 
     private lazy var arrowToolButton = makeSelectableToolButton(
         for: .arrow,
@@ -159,14 +176,14 @@ final class RegionCaptureToolbarController: NSWindowController {
         action: #selector(handleCancel)
     )
 
-    private lazy var arrowSizeButtons: [(RegionCaptureArrowSize, RegionCaptureToolbarSelectableButton)] =
-        RegionCaptureArrowSize.allCases.map { size in
-            (size, makeArrowSizeButton(for: size))
+    private lazy var strokeSizeButtons: [(RegionCaptureStrokeSize, RegionCaptureToolbarSelectableButton)] =
+        RegionCaptureStrokeSize.allCases.map { size in
+            (size, makeStrokeSizeButton(for: size))
         }
 
-    private lazy var arrowColorButtons: [(RegionCaptureArrowColor, RegionCaptureToolbarSelectableButton)] =
-        RegionCaptureArrowColor.allCases.map { color in
-            (color, makeArrowColorButton(for: color))
+    private lazy var strokeColorButtons: [(RegionCaptureAnnotationColor, RegionCaptureToolbarSelectableButton)] =
+        RegionCaptureAnnotationColor.allCases.map { color in
+            (color, makeStrokeColorButton(for: color))
         }
 
     init() {
@@ -241,8 +258,6 @@ final class RegionCaptureToolbarController: NSWindowController {
 
         configureBackground(primaryBackgroundView)
         configureBackground(secondaryBackgroundView)
-        secondaryNotchView.translatesAutoresizingMaskIntoConstraints = false
-        secondaryNotchView.isHidden = true
 
         configurePrimaryStack()
         configureSecondaryStack()
@@ -250,11 +265,6 @@ final class RegionCaptureToolbarController: NSWindowController {
         contentContainerView.addSubview(rootStackView)
         rootStackView.addArrangedSubview(primaryBackgroundView)
         rootStackView.addArrangedSubview(secondaryBackgroundView)
-        rootStackView.addSubview(
-            secondaryNotchView,
-            positioned: .below,
-            relativeTo: secondaryBackgroundView
-        )
 
         NSLayoutConstraint.activate([
             rootStackView.leadingAnchor.constraint(
@@ -268,18 +278,6 @@ final class RegionCaptureToolbarController: NSWindowController {
             ),
             rootStackView.bottomAnchor.constraint(
                 equalTo: contentContainerView.bottomAnchor
-            ),
-            secondaryNotchView.widthAnchor.constraint(
-                equalToConstant: Layout.notchWidth
-            ),
-            secondaryNotchView.heightAnchor.constraint(
-                equalToConstant: Layout.notchHeight
-            ),
-            secondaryNotchView.centerXAnchor.constraint(
-                equalTo: arrowToolButton.centerXAnchor
-            ),
-            secondaryNotchView.centerYAnchor.constraint(
-                equalTo: secondaryBackgroundView.topAnchor
             ),
         ])
 
@@ -307,8 +305,8 @@ final class RegionCaptureToolbarController: NSWindowController {
         primaryStackView.setHuggingPriority(.required, for: .vertical)
 
         let toolbarItems: [NSView] = [
-            makeStaticOrnamentView(for: .rectangle),
-            makeStaticOrnamentView(for: .ellipse),
+            rectangleToolButton,
+            ellipseToolButton,
             arrowToolButton,
             makeStaticOrnamentView(for: .pen),
             makeStaticOrnamentView(for: .mosaic),
@@ -352,11 +350,11 @@ final class RegionCaptureToolbarController: NSWindowController {
         secondaryStackView.setHuggingPriority(.required, for: .horizontal)
         secondaryStackView.setHuggingPriority(.required, for: .vertical)
 
-        arrowSizeButtons.forEach { _, button in
+        strokeSizeButtons.forEach { _, button in
             secondaryStackView.addArrangedSubview(button)
         }
         secondaryStackView.addArrangedSubview(makeSeparator())
-        arrowColorButtons.forEach { _, button in
+        strokeColorButtons.forEach { _, button in
             secondaryStackView.addArrangedSubview(button)
         }
 
@@ -446,8 +444,8 @@ final class RegionCaptureToolbarController: NSWindowController {
         return button
     }
 
-    private func makeArrowSizeButton(
-        for size: RegionCaptureArrowSize
+    private func makeStrokeSizeButton(
+        for size: RegionCaptureStrokeSize
     ) -> RegionCaptureToolbarSelectableButton {
         let pointSize: CGFloat
         switch size {
@@ -473,12 +471,12 @@ final class RegionCaptureToolbarController: NSWindowController {
             selectedTintColor: Color.accent,
             disabledTintColor: Color.disabledSymbol,
             target: self,
-            action: #selector(handleArrowSize(_:))
+            action: #selector(handleStrokeSize(_:))
         )
         button.imagePosition = .imageOnly
         button.toolTip = size.accessibilityLabel
         button.identifier = NSUserInterfaceItemIdentifier(
-            "arrow-size-\(size.accessibilityLabel)"
+            "stroke-size-\(size.accessibilityLabel)"
         )
         button.translatesAutoresizingMaskIntoConstraints = false
         button.widthAnchor.constraint(
@@ -490,8 +488,8 @@ final class RegionCaptureToolbarController: NSWindowController {
         return button
     }
 
-    private func makeArrowColorButton(
-        for color: RegionCaptureArrowColor
+    private func makeStrokeColorButton(
+        for color: RegionCaptureAnnotationColor
     ) -> RegionCaptureToolbarSelectableButton {
         let button = RegionCaptureToolbarSelectableButton(
             image: nil,
@@ -503,11 +501,11 @@ final class RegionCaptureToolbarController: NSWindowController {
             selectedTintColor: Color.accent,
             disabledTintColor: Color.disabledSymbol,
             target: self,
-            action: #selector(handleArrowColor(_:))
+            action: #selector(handleStrokeColor(_:))
         )
         button.toolTip = color.accessibilityLabel
         button.identifier = NSUserInterfaceItemIdentifier(
-            "arrow-color-\(color.accessibilityLabel)"
+            "stroke-color-\(color.accessibilityLabel)"
         )
         button.translatesAutoresizingMaskIntoConstraints = false
         button.widthAnchor.constraint(
@@ -673,17 +671,18 @@ final class RegionCaptureToolbarController: NSWindowController {
     }
 
     private func applyState() {
+        rectangleToolButton.isPersistentSelected = state.isRectangleToolSelected
+        ellipseToolButton.isPersistentSelected = state.isEllipseToolSelected
         arrowToolButton.isPersistentSelected = state.isArrowToolSelected
         undoButton.isEnabled = state.canUndo
         undoButton.isPersistentSelected = false
-        secondaryBackgroundView.isHidden = !state.isArrowToolSelected
-        secondaryNotchView.isHidden = !state.isArrowToolSelected
+        secondaryBackgroundView.isHidden = !state.showsSecondaryToolbar
 
-        arrowSizeButtons.forEach { size, button in
-            button.isPersistentSelected = state.selectedArrowSize == size
+        strokeSizeButtons.forEach { size, button in
+            button.isPersistentSelected = state.selectedStrokeSize == size
         }
-        arrowColorButtons.forEach { color, button in
-            button.isPersistentSelected = state.selectedArrowColor == color
+        strokeColorButtons.forEach { color, button in
+            button.isPersistentSelected = state.selectedStrokeColor == color
         }
 
         if
@@ -710,6 +709,16 @@ final class RegionCaptureToolbarController: NSWindowController {
     }
 
     @objc
+    private func handleRectangleTool() {
+        rectangleToolHandler?()
+    }
+
+    @objc
+    private func handleEllipseTool() {
+        ellipseToolHandler?()
+    }
+
+    @objc
     private func handleArrowTool() {
         arrowToolHandler?()
     }
@@ -720,23 +729,23 @@ final class RegionCaptureToolbarController: NSWindowController {
     }
 
     @objc
-    private func handleArrowSize(_ sender: NSButton) {
+    private func handleStrokeSize(_ sender: NSButton) {
         guard
-            let pair = arrowSizeButtons.first(where: { $0.1 === sender })
+            let pair = strokeSizeButtons.first(where: { $0.1 === sender })
         else {
             return
         }
-        arrowSizeHandler?(pair.0)
+        strokeSizeHandler?(pair.0)
     }
 
     @objc
-    private func handleArrowColor(_ sender: NSButton) {
+    private func handleStrokeColor(_ sender: NSButton) {
         guard
-            let pair = arrowColorButtons.first(where: { $0.1 === sender })
+            let pair = strokeColorButtons.first(where: { $0.1 === sender })
         else {
             return
         }
-        arrowColorHandler?(pair.0)
+        strokeColorHandler?(pair.0)
     }
 }
 
@@ -1077,25 +1086,5 @@ private final class RegionCaptureToolbarOrnamentView: NSView {
     override func mouseExited(with event: NSEvent) {
         super.mouseExited(with: event)
         layer?.backgroundColor = NSColor.clear.cgColor
-    }
-}
-
-private final class RegionCaptureToolbarNotchView: NSView {
-
-    override var isOpaque: Bool { false }
-
-    override func draw(_ dirtyRect: NSRect) {
-        let path = NSBezierPath()
-        path.move(to: CGPoint(x: bounds.minX, y: bounds.minY))
-        path.line(to: CGPoint(x: bounds.midX, y: bounds.maxY))
-        path.line(to: CGPoint(x: bounds.maxX, y: bounds.minY))
-        path.close()
-
-        NSColor.white.withAlphaComponent(0.98).setFill()
-        path.fill()
-
-        NSColor.black.withAlphaComponent(0.1).setStroke()
-        path.lineWidth = 1
-        path.stroke()
     }
 }
