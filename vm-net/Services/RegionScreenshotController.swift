@@ -27,7 +27,6 @@ final class RegionScreenshotController: ObservableObject {
 
     private var selectionSession: RegionCaptureOverlaySession?
     private var previousFrontmostApplication: NSRunningApplication?
-    private let previewController = RegionCapturePreviewController()
 
     var supportsRegionCapture: Bool {
         if #available(macOS 14.0, *) {
@@ -115,12 +114,16 @@ final class RegionScreenshotController: ObservableObject {
 
         let session = RegionCaptureOverlaySession(
             screens: NSScreen.screens,
-            onCommit: { [weak self] selection, action in
+            onCommit: { [weak self] selection, annotations, action in
                 guard let self else { return }
                 self.selectionSession = nil
                 self.restorePreviousFrontmostApplication()
                 Task {
-                    await self.captureSelection(selection, action: action)
+                    await self.captureSelection(
+                        selection,
+                        annotations: annotations,
+                        action: action
+                    )
                 }
             },
             onCancel: { [weak self] in
@@ -136,9 +139,13 @@ final class RegionScreenshotController: ObservableObject {
 
     private func captureSelection(
         _ selection: RegionSelection,
+        annotations: [RegionCaptureArrowAnnotation],
         action: RegionCaptureCommitAction
     ) async {
-        let request = captureRequest(for: selection)
+        let request = captureRequest(
+            for: selection,
+            annotations: annotations
+        )
 
         do {
             let result = try await Task.detached(priority: .userInitiated) {
@@ -173,16 +180,6 @@ final class RegionScreenshotController: ObservableObject {
                     kind: .success
                 )
             }
-
-            previewController.show(
-                pngData: result.pngData,
-                pixelSize: NSSize(
-                    width: result.pixelWidth,
-                    height: result.pixelHeight
-                ),
-                fileURL: result.fileURL,
-                on: selection.originScreen
-            )
         } catch let error as RegionScreenshotError {
             showStatus(error.localizedDescription, kind: .error)
         } catch {
@@ -210,14 +207,18 @@ final class RegionScreenshotController: ObservableObject {
         }
     }
 
-    private func captureRequest(for selection: RegionSelection) -> RegionCaptureRequest {
+    private func captureRequest(
+        for selection: RegionSelection,
+        annotations: [RegionCaptureArrowAnnotation]
+    ) -> RegionCaptureRequest {
         let activeScreen = screenContainingPoint(selection.rect.origin)
             ?? selection.originScreen
 
         return RegionCaptureRequest(
             rect: selection.rect,
             displayID: activeScreen.cgDisplayID,
-            screenFrame: activeScreen.frame
+            screenFrame: activeScreen.frame,
+            annotations: annotations
         )
     }
 
@@ -250,6 +251,7 @@ private struct RegionCaptureRequest: Sendable {
     let rect: CGRect
     let displayID: CGDirectDisplayID?
     let screenFrame: CGRect
+    let annotations: [RegionCaptureArrowAnnotation]
 }
 
 private struct RegionCaptureResult: Sendable {
@@ -265,7 +267,12 @@ private enum RegionScreenshotPipeline {
         _ request: RegionCaptureRequest,
         action: RegionCaptureCommitAction
     ) async throws -> RegionCaptureResult {
-        let image = try await captureImage(for: request)
+        let baseImage = try await captureImage(for: request)
+        let image = try renderAnnotations(
+            request.annotations,
+            onto: baseImage,
+            selectionRect: request.rect
+        )
         let pngData = try pngData(from: image)
         let fileURL: URL?
 
@@ -339,6 +346,128 @@ private enum RegionScreenshotPipeline {
             contentFilter: filter,
             configuration: configuration
         )
+    }
+
+    private static func renderAnnotations(
+        _ annotations: [RegionCaptureArrowAnnotation],
+        onto image: CGImage,
+        selectionRect: CGRect
+    ) throws -> CGImage {
+        guard !annotations.isEmpty else { return image }
+
+        let width = image.width
+        let height = image.height
+        let colorSpace = image.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)
+            ?? CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
+
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo
+        ) else {
+            throw RegionScreenshotError.saveFailed
+        }
+
+        let drawingRect = CGRect(
+            x: 0,
+            y: 0,
+            width: CGFloat(width),
+            height: CGFloat(height)
+        )
+
+        context.interpolationQuality = .high
+        context.draw(image, in: drawingRect)
+
+        let horizontalScale = drawingRect.width / max(selectionRect.width, 1)
+        let verticalScale = drawingRect.height / max(selectionRect.height, 1)
+        let scale = max((horizontalScale + verticalScale) * 0.5, 1)
+
+        for annotation in annotations {
+            drawArrow(
+                annotation,
+                in: drawingRect,
+                scale: scale,
+                context: context
+            )
+        }
+
+        guard let renderedImage = context.makeImage() else {
+            throw RegionScreenshotError.saveFailed
+        }
+
+        return renderedImage
+    }
+
+    private static func drawArrow(
+        _ annotation: RegionCaptureArrowAnnotation,
+        in rect: CGRect,
+        scale: CGFloat,
+        context: CGContext
+    ) {
+        let startPoint = annotation.startPoint(in: rect)
+        let endPoint = annotation.endPoint(in: rect)
+        let deltaX = endPoint.x - startPoint.x
+        let deltaY = endPoint.y - startPoint.y
+        let length = hypot(deltaX, deltaY)
+        guard length > 1 else { return }
+
+        let unitX = deltaX / length
+        let unitY = deltaY / length
+        let bodyWidth = annotation.style.size.lineWidth * scale
+        let tailWidth = max(bodyWidth * 0.42, 2)
+        let halfTailWidth = tailWidth * 0.5
+        let halfBodyWidth = bodyWidth * 0.5
+        let headLength = min(
+            max(annotation.style.size.headLength * scale, bodyWidth * 2.8),
+            length * 0.58
+        )
+        let headWidth = max(headLength * 1.06, bodyWidth * 3.2)
+        let shaftEnd = CGPoint(
+            x: endPoint.x - (unitX * headLength),
+            y: endPoint.y - (unitY * headLength)
+        )
+        let perpendicular = CGPoint(x: -unitY, y: unitX)
+        let startLeft = CGPoint(
+            x: startPoint.x + (perpendicular.x * halfTailWidth),
+            y: startPoint.y + (perpendicular.y * halfTailWidth)
+        )
+        let startRight = CGPoint(
+            x: startPoint.x - (perpendicular.x * halfTailWidth),
+            y: startPoint.y - (perpendicular.y * halfTailWidth)
+        )
+        let shaftLeft = CGPoint(
+            x: shaftEnd.x + (perpendicular.x * halfBodyWidth),
+            y: shaftEnd.y + (perpendicular.y * halfBodyWidth)
+        )
+        let shaftRight = CGPoint(
+            x: shaftEnd.x - (perpendicular.x * halfBodyWidth),
+            y: shaftEnd.y - (perpendicular.y * halfBodyWidth)
+        )
+        let leftHeadPoint = CGPoint(
+            x: shaftEnd.x + (perpendicular.x * headWidth * 0.5),
+            y: shaftEnd.y + (perpendicular.y * headWidth * 0.5)
+        )
+        let rightHeadPoint = CGPoint(
+            x: shaftEnd.x - (perpendicular.x * headWidth * 0.5),
+            y: shaftEnd.y - (perpendicular.y * headWidth * 0.5)
+        )
+
+        context.setFillColor(annotation.style.color.cgColor)
+        context.beginPath()
+        context.move(to: startLeft)
+        context.addLine(to: shaftLeft)
+        context.addLine(to: leftHeadPoint)
+        context.addLine(to: endPoint)
+        context.addLine(to: rightHeadPoint)
+        context.addLine(to: shaftRight)
+        context.addLine(to: startRight)
+        context.closePath()
+        context.fillPath()
     }
 
     @available(macOS 14.0, *)
@@ -429,11 +558,6 @@ private enum RegionScreenshotPipeline {
             throw RegionScreenshotError.saveFailed
         }
     }
-}
-
-struct RegionSelection {
-    let rect: CGRect
-    let originScreen: NSScreen
 }
 
 private enum RegionScreenshotError: LocalizedError {

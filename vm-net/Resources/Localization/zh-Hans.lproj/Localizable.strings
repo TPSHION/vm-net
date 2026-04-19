@@ -224,7 +224,7 @@
 "activity.process.tag.burst" = "短时突发";
 
 "screenshot.toolbar.saveToFile" = "保存到文件";
-"screenshot.toolbar.copyToClipboard" = "确认截图";
+"screenshot.toolbar.copyToClipboard" = "复制到剪贴板";
 "screenshot.toolbar.cancel" = "取消";
 "screenshot.toolbar.rectangle" = "矩形";
 "screenshot.toolbar.ellipse" = "圆形";
@@ -235,8 +235,16 @@
 "screenshot.toolbar.tag" = "标签";
 "screenshot.toolbar.textRecognition" = "识别文本";
 "screenshot.toolbar.undo" = "撤销";
+"screenshot.toolbar.arrowSize.small" = "小号箭头";
+"screenshot.toolbar.arrowSize.medium" = "中号箭头";
+"screenshot.toolbar.arrowSize.large" = "大号箭头";
+"screenshot.toolbar.arrowColor.red" = "红色箭头";
+"screenshot.toolbar.arrowColor.yellow" = "黄色箭头";
+"screenshot.toolbar.arrowColor.green" = "绿色箭头";
+"screenshot.toolbar.arrowColor.blue" = "蓝色箭头";
+"screenshot.toolbar.arrowColor.gray" = "灰色箭头";
 "screenshot.status.saved" = "截图已保存到“图片/vm-net”：%@";
-"screenshot.status.copied" = "截图已复制到剪贴板。";
+"screenshot.status.copied" = "截图已复制到剪贴板，可直接粘贴。";
 "screenshot.status.failed" = "截图失败，请稍后重试。";
 "screenshot.status.permissionDenied" = "未获得屏幕录制权限，请在系统设置里允许 vm-net 后重试。";
 "screenshot.status.permissionRestartRequired" = "已请求屏幕录制权限。请在系统弹窗或系统设置中允许 vm-net，然后重新启动应用。";

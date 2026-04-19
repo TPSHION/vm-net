@@ -224,7 +224,7 @@
 "activity.process.tag.burst" = "Burst";
 
 "screenshot.toolbar.saveToFile" = "Save to File";
-"screenshot.toolbar.copyToClipboard" = "Confirm Capture";
+"screenshot.toolbar.copyToClipboard" = "Copy to Clipboard";
 "screenshot.toolbar.cancel" = "Cancel";
 "screenshot.toolbar.rectangle" = "Rectangle";
 "screenshot.toolbar.ellipse" = "Ellipse";
@@ -235,8 +235,16 @@
 "screenshot.toolbar.tag" = "Tag";
 "screenshot.toolbar.textRecognition" = "Text Recognition";
 "screenshot.toolbar.undo" = "Undo";
+"screenshot.toolbar.arrowSize.small" = "Small Arrow";
+"screenshot.toolbar.arrowSize.medium" = "Medium Arrow";
+"screenshot.toolbar.arrowSize.large" = "Large Arrow";
+"screenshot.toolbar.arrowColor.red" = "Red Arrow";
+"screenshot.toolbar.arrowColor.yellow" = "Yellow Arrow";
+"screenshot.toolbar.arrowColor.green" = "Green Arrow";
+"screenshot.toolbar.arrowColor.blue" = "Blue Arrow";
+"screenshot.toolbar.arrowColor.gray" = "Gray Arrow";
 "screenshot.status.saved" = "Saved to Pictures/vm-net: %@";
-"screenshot.status.copied" = "Copied to the clipboard.";
+"screenshot.status.copied" = "Copied to the clipboard and ready to paste.";
 "screenshot.status.failed" = "The screenshot failed. Try again.";
 "screenshot.status.permissionDenied" = "Screen Recording permission is required. Allow vm-net in System Settings and try again.";
 "screenshot.status.permissionRestartRequired" = "Screen Recording permission was requested. Allow vm-net in the system prompt or System Settings, then restart the app.";

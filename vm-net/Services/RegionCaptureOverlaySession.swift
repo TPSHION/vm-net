@@ -13,6 +13,160 @@ enum RegionCaptureCommitAction: Sendable {
     case saveToFile
 }
 
+enum RegionCaptureTool: Equatable {
+    case arrow
+}
+
+enum RegionCaptureArrowSize: CaseIterable, Equatable, Sendable {
+    case small
+    case medium
+    case large
+
+    var lineWidth: CGFloat {
+        switch self {
+        case .small:
+            return 4
+        case .medium:
+            return 6
+        case .large:
+            return 8
+        }
+    }
+
+    var headLength: CGFloat {
+        switch self {
+        case .small:
+            return 14
+        case .medium:
+            return 18
+        case .large:
+            return 22
+        }
+    }
+
+    var accessibilityLabel: String {
+        switch self {
+        case .small:
+            return L10n.tr("screenshot.toolbar.arrowSize.small")
+        case .medium:
+            return L10n.tr("screenshot.toolbar.arrowSize.medium")
+        case .large:
+            return L10n.tr("screenshot.toolbar.arrowSize.large")
+        }
+    }
+}
+
+enum RegionCaptureArrowColor: CaseIterable, Equatable, Sendable {
+    case red
+    case yellow
+    case green
+    case blue
+    case gray
+
+    var overlayColor: NSColor {
+        switch self {
+        case .red:
+            return NSColor.systemRed
+        case .yellow:
+            return NSColor.systemYellow
+        case .green:
+            return NSColor.systemGreen
+        case .blue:
+            return NSColor.systemBlue
+        case .gray:
+            return NSColor.systemGray
+        }
+    }
+
+    var cgColor: CGColor {
+        overlayColor.cgColor
+    }
+
+    var accessibilityLabel: String {
+        switch self {
+        case .red:
+            return L10n.tr("screenshot.toolbar.arrowColor.red")
+        case .yellow:
+            return L10n.tr("screenshot.toolbar.arrowColor.yellow")
+        case .green:
+            return L10n.tr("screenshot.toolbar.arrowColor.green")
+        case .blue:
+            return L10n.tr("screenshot.toolbar.arrowColor.blue")
+        case .gray:
+            return L10n.tr("screenshot.toolbar.arrowColor.gray")
+        }
+    }
+}
+
+struct RegionCaptureArrowStyle: Equatable, Sendable {
+    var size: RegionCaptureArrowSize
+    var color: RegionCaptureArrowColor
+
+    static let `default` = RegionCaptureArrowStyle(
+        size: .medium,
+        color: .blue
+    )
+}
+
+struct RegionCaptureNormalizedPoint: Equatable, Sendable {
+    let x: CGFloat
+    let y: CGFloat
+
+    static let zero = RegionCaptureNormalizedPoint(x: 0, y: 0)
+
+    func point(in rect: CGRect) -> CGPoint {
+        CGPoint(
+            x: rect.minX + (rect.width * x),
+            y: rect.minY + (rect.height * y)
+        )
+    }
+}
+
+struct RegionCaptureArrowAnnotation: Equatable, Sendable {
+    let start: RegionCaptureNormalizedPoint
+    let end: RegionCaptureNormalizedPoint
+    let style: RegionCaptureArrowStyle
+
+    init(
+        startPoint: CGPoint,
+        endPoint: CGPoint,
+        in selectionRect: CGRect,
+        style: RegionCaptureArrowStyle
+    ) {
+        self.start = Self.normalized(startPoint, in: selectionRect)
+        self.end = Self.normalized(endPoint, in: selectionRect)
+        self.style = style
+    }
+
+    func startPoint(in rect: CGRect) -> CGPoint {
+        start.point(in: rect)
+    }
+
+    func endPoint(in rect: CGRect) -> CGPoint {
+        end.point(in: rect)
+    }
+
+    func length(in rect: CGRect) -> CGFloat {
+        let startPoint = startPoint(in: rect)
+        let endPoint = endPoint(in: rect)
+        return hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y)
+    }
+
+    private static func normalized(
+        _ point: CGPoint,
+        in rect: CGRect
+    ) -> RegionCaptureNormalizedPoint {
+        guard rect.width > 0, rect.height > 0 else {
+            return .zero
+        }
+
+        return RegionCaptureNormalizedPoint(
+            x: min(max((point.x - rect.minX) / rect.width, 0), 1),
+            y: min(max((point.y - rect.minY) / rect.height, 0), 1)
+        )
+    }
+}
+
 // Overlay architecture adapted from ScrollSnap (MIT):
 // https://github.com/Brkgng/ScrollSnap
 @MainActor
@@ -20,6 +174,7 @@ final class RegionCaptureOverlaySession {
 
     private enum Layout {
         static let minimumSelectionSize: CGFloat = 8
+        static let minimumArrowLength: CGFloat = 10
     }
 
     private enum Interaction {
@@ -40,21 +195,37 @@ final class RegionCaptureOverlaySession {
             initialRect: CGRect,
             screen: NSScreen
         )
+        case drawingArrow(
+            anchor: CGPoint,
+            screen: NSScreen
+        )
     }
 
     private let overlayControllers: [RegionCaptureOverlayController]
     private let toolbarController = RegionCaptureToolbarController()
-    private let onCommit: (RegionSelection, RegionCaptureCommitAction) -> Void
+    private let onCommit: (
+        RegionSelection,
+        [RegionCaptureArrowAnnotation],
+        RegionCaptureCommitAction
+    ) -> Void
     private let onCancel: () -> Void
 
     private var keyboardMonitor: Any?
     private var currentSelection: RegionSelection?
     private var interaction: Interaction?
     private var isDefaultFullscreenSelection = false
+    private var activeTool: RegionCaptureTool?
+    private var arrowStyle = RegionCaptureArrowStyle.default
+    private var arrowAnnotations: [RegionCaptureArrowAnnotation] = []
+    private var draftArrow: RegionCaptureArrowAnnotation?
 
     init(
         screens: [NSScreen],
-        onCommit: @escaping (RegionSelection, RegionCaptureCommitAction) -> Void,
+        onCommit: @escaping (
+            RegionSelection,
+            [RegionCaptureArrowAnnotation],
+            RegionCaptureCommitAction
+        ) -> Void,
         onCancel: @escaping () -> Void
     ) {
         self.overlayControllers = screens.map {
@@ -71,6 +242,18 @@ final class RegionCaptureOverlaySession {
         }
         toolbarController.cancelHandler = { [weak self] in
             self?.cancel()
+        }
+        toolbarController.arrowToolHandler = { [weak self] in
+            self?.toggleArrowTool()
+        }
+        toolbarController.arrowSizeHandler = { [weak self] size in
+            self?.setArrowSize(size)
+        }
+        toolbarController.arrowColorHandler = { [weak self] color in
+            self?.setArrowColor(color)
+        }
+        toolbarController.undoHandler = { [weak self] in
+            self?.undoLastArrow()
         }
 
         for controller in overlayControllers {
@@ -170,6 +353,27 @@ final class RegionCaptureOverlaySession {
         }
 
         if
+            activeTool == .arrow,
+            let selection = currentSelection,
+            selection.originScreen == screen,
+            selection.rect.contains(clampedPoint),
+            !isDefaultFullscreenSelection
+        {
+            let anchor = clamp(clampedPoint, to: selection.rect)
+            interaction = .drawingArrow(
+                anchor: anchor,
+                screen: screen
+            )
+            draftArrow = makeArrowAnnotation(
+                from: anchor,
+                to: anchor,
+                in: selection.rect
+            )
+            renderSelectionUI()
+            return
+        }
+
+        if
             let selection = currentSelection,
             selection.originScreen == screen,
             selection.rect.contains(clampedPoint),
@@ -242,6 +446,22 @@ final class RegionCaptureOverlaySession {
             )
             currentSelection = RegionSelection(rect: rect, originScreen: screen)
             renderSelectionUI()
+
+        case let .drawingArrow(anchor, screen):
+            guard
+                let selection = currentSelection,
+                selection.originScreen == screen
+            else {
+                return
+            }
+
+            let endPoint = clamp(point, to: selection.rect)
+            draftArrow = makeArrowAnnotation(
+                from: anchor,
+                to: endPoint,
+                in: selection.rect
+            )
+            renderSelectionUI()
         }
     }
 
@@ -278,6 +498,18 @@ final class RegionCaptureOverlaySession {
                 ),
                 isDefaultFullscreen: false
             )
+
+        case .drawingArrow:
+            if
+                let currentSelection,
+                let draftArrow,
+                draftArrow.length(in: currentSelection.rect)
+                    >= Layout.minimumArrowLength
+            {
+                arrowAnnotations.append(draftArrow)
+            }
+            self.draftArrow = nil
+            renderSelectionUI()
         }
     }
 
@@ -289,8 +521,9 @@ final class RegionCaptureOverlaySession {
             return
         }
 
+        let annotations = arrowAnnotations
         teardown()
-        onCommit(currentSelection, action)
+        onCommit(currentSelection, annotations, action)
     }
 
     private func cancel() {
@@ -304,6 +537,13 @@ final class RegionCaptureOverlaySession {
     ) {
         currentSelection = selection
         self.isDefaultFullscreenSelection = isDefaultFullscreen
+
+        if selection == nil || isDefaultFullscreen {
+            activeTool = nil
+            arrowAnnotations.removeAll()
+            draftArrow = nil
+        }
+
         renderSelectionUI()
     }
 
@@ -312,16 +552,16 @@ final class RegionCaptureOverlaySession {
         let hasEditableSelection =
             (currentSelection.map(isValid(selection:)) ?? false)
             && !isDefaultFullscreenSelection
-        let isDrawingInteraction: Bool
-        if case .drawing = interaction {
-            isDrawingInteraction = true
+        let isArrowInteraction: Bool
+        if case .drawingArrow = interaction {
+            isArrowInteraction = true
         } else {
-            isDrawingInteraction = false
+            isArrowInteraction = false
         }
         let canShowEditingControls =
             hasEditableSelection
             && interaction == nil
-        let showsHandles = hasEditableSelection && !isDrawingInteraction
+        let showsHandles = hasEditableSelection && !isArrowInteraction
         let showsSelectionMask =
             currentSelection != nil
             && !isDefaultFullscreenSelection
@@ -329,6 +569,7 @@ final class RegionCaptureOverlaySession {
             !(currentSelection.map(isValid(selection:)) ?? false)
             || isDefaultFullscreenSelection
         let allowsOverlayKeyFocus = true
+        let isArrowToolActive = activeTool == .arrow
 
         overlayControllers.forEach { controller in
             controller.selectionRect = rect
@@ -336,7 +577,27 @@ final class RegionCaptureOverlaySession {
             controller.showsSelectionMask = showsSelectionMask
             controller.usesCrosshairCursor = usesCrosshairCursor
             controller.allowsKeyFocus = allowsOverlayKeyFocus
+            controller.usesArrowToolCursor =
+                isArrowToolActive
+                && currentSelection?.originScreen == controller.screen
+            controller.annotations =
+                currentSelection?.originScreen == controller.screen
+                ? arrowAnnotations
+                : []
+            controller.draftAnnotation =
+                currentSelection?.originScreen == controller.screen
+                ? draftArrow
+                : nil
         }
+
+        toolbarController.update(
+            state: .init(
+                isArrowToolSelected: isArrowToolActive,
+                selectedArrowSize: arrowStyle.size,
+                selectedArrowColor: arrowStyle.color,
+                canUndo: !arrowAnnotations.isEmpty
+            )
+        )
 
         if let currentSelection, canShowEditingControls {
             toolbarController.show(for: currentSelection)
@@ -355,6 +616,45 @@ final class RegionCaptureOverlaySession {
         overlayControllers.forEach { controller in
             controller.close()
         }
+    }
+
+    private func toggleArrowTool() {
+        guard (currentSelection.map(isValid(selection:)) ?? false) else {
+            return
+        }
+
+        activeTool = activeTool == .arrow ? nil : .arrow
+        draftArrow = nil
+        renderSelectionUI()
+    }
+
+    private func setArrowSize(_ size: RegionCaptureArrowSize) {
+        arrowStyle.size = size
+        renderSelectionUI()
+    }
+
+    private func setArrowColor(_ color: RegionCaptureArrowColor) {
+        arrowStyle.color = color
+        renderSelectionUI()
+    }
+
+    private func undoLastArrow() {
+        guard !arrowAnnotations.isEmpty else { return }
+        arrowAnnotations.removeLast()
+        renderSelectionUI()
+    }
+
+    private func makeArrowAnnotation(
+        from startPoint: CGPoint,
+        to endPoint: CGPoint,
+        in selectionRect: CGRect
+    ) -> RegionCaptureArrowAnnotation {
+        RegionCaptureArrowAnnotation(
+            startPoint: startPoint,
+            endPoint: endPoint,
+            in: selectionRect,
+            style: arrowStyle
+        )
     }
 
     private func isValid(selection: RegionSelection) -> Bool {
@@ -585,12 +885,32 @@ private final class RegionCaptureOverlayController: NSWindowController {
     var usesCrosshairCursor = true {
         didSet {
             overlayView.usesCrosshairCursor = usesCrosshairCursor
+            window?.invalidateCursorRects(for: overlayView)
         }
     }
 
     var allowsKeyFocus = true {
         didSet {
             (window as? RegionCaptureOverlayWindow)?.allowsKeyFocus = allowsKeyFocus
+        }
+    }
+
+    var usesArrowToolCursor = false {
+        didSet {
+            overlayView.usesArrowToolCursor = usesArrowToolCursor
+            window?.invalidateCursorRects(for: overlayView)
+        }
+    }
+
+    var annotations: [RegionCaptureArrowAnnotation] = [] {
+        didSet {
+            overlayView.annotations = annotations
+        }
+    }
+
+    var draftAnnotation: RegionCaptureArrowAnnotation? {
+        didSet {
+            overlayView.draftAnnotation = draftAnnotation
         }
     }
 
@@ -715,6 +1035,24 @@ private final class RegionCaptureOverlayView: NSView {
         }
     }
 
+    var usesArrowToolCursor = false {
+        didSet {
+            window?.invalidateCursorRects(for: self)
+        }
+    }
+
+    var annotations: [RegionCaptureArrowAnnotation] = [] {
+        didSet {
+            needsDisplay = true
+        }
+    }
+
+    var draftAnnotation: RegionCaptureArrowAnnotation? {
+        didSet {
+            needsDisplay = true
+        }
+    }
+
     private var isDragging = false
 
     init(screenFrame: CGRect) {
@@ -742,12 +1080,7 @@ private final class RegionCaptureOverlayView: NSView {
             cursor: usesCrosshairCursor ? .crosshair : .arrow
         )
 
-        guard
-            showsHandles,
-            !selectionRect.isEmpty
-        else {
-            return
-        }
+        guard !selectionRect.isEmpty else { return }
 
         let localRect = selectionRect.offsetBy(
             dx: -screenFrame.minX,
@@ -755,6 +1088,14 @@ private final class RegionCaptureOverlayView: NSView {
         )
 
         guard localRect.intersects(bounds) else { return }
+
+        if usesArrowToolCursor {
+            addCursorRect(localRect, cursor: .crosshair)
+        }
+
+        guard showsHandles else {
+            return
+        }
 
         for handle in RegionSelectionHandle.allCases {
             addCursorRect(
@@ -777,6 +1118,7 @@ private final class RegionCaptureOverlayView: NSView {
         guard localRect.intersects(bounds) else { return }
 
         drawInteractionCaptureFill(in: localRect)
+        drawAnnotations(in: localRect)
 
         let strokePath = NSBezierPath(rect: localRect)
         strokePath.lineWidth = Appearance.strokeWidth
@@ -817,6 +1159,94 @@ private final class RegionCaptureOverlayView: NSView {
 
         Appearance.selectionInteractionFillColor.setFill()
         visibleSelectionRect.fill()
+    }
+
+    private func drawAnnotations(in localRect: CGRect) {
+        guard !annotations.isEmpty || draftAnnotation != nil else {
+            return
+        }
+
+        NSGraphicsContext.saveGraphicsState()
+        let clipPath = NSBezierPath(rect: localRect)
+        clipPath.addClip()
+
+        for annotation in annotations {
+            drawArrow(annotation, in: localRect, alpha: 1)
+        }
+
+        if let draftAnnotation {
+            drawArrow(draftAnnotation, in: localRect, alpha: 1)
+        }
+
+        NSGraphicsContext.restoreGraphicsState()
+    }
+
+    private func drawArrow(
+        _ annotation: RegionCaptureArrowAnnotation,
+        in rect: CGRect,
+        alpha: CGFloat
+    ) {
+        let startPoint = annotation.startPoint(in: rect)
+        let endPoint = annotation.endPoint(in: rect)
+        let deltaX = endPoint.x - startPoint.x
+        let deltaY = endPoint.y - startPoint.y
+        let length = hypot(deltaX, deltaY)
+        guard length > 1 else { return }
+
+        let unitX = deltaX / length
+        let unitY = deltaY / length
+        let bodyWidth = annotation.style.size.lineWidth
+        let tailWidth = max(bodyWidth * 0.42, 2)
+        let halfTailWidth = tailWidth * 0.5
+        let halfBodyWidth = bodyWidth * 0.5
+        let headLength = min(
+            max(annotation.style.size.headLength, bodyWidth * 2.8),
+            length * 0.58
+        )
+        let headWidth = max(headLength * 1.06, bodyWidth * 3.2)
+        let shaftEnd = CGPoint(
+            x: endPoint.x - (unitX * headLength),
+            y: endPoint.y - (unitY * headLength)
+        )
+        let perpendicular = CGPoint(x: -unitY, y: unitX)
+        let startLeft = CGPoint(
+            x: startPoint.x + (perpendicular.x * halfTailWidth),
+            y: startPoint.y + (perpendicular.y * halfTailWidth)
+        )
+        let startRight = CGPoint(
+            x: startPoint.x - (perpendicular.x * halfTailWidth),
+            y: startPoint.y - (perpendicular.y * halfTailWidth)
+        )
+        let shaftLeft = CGPoint(
+            x: shaftEnd.x + (perpendicular.x * halfBodyWidth),
+            y: shaftEnd.y + (perpendicular.y * halfBodyWidth)
+        )
+        let shaftRight = CGPoint(
+            x: shaftEnd.x - (perpendicular.x * halfBodyWidth),
+            y: shaftEnd.y - (perpendicular.y * halfBodyWidth)
+        )
+        let leftHeadPoint = CGPoint(
+            x: shaftEnd.x + (perpendicular.x * headWidth * 0.5),
+            y: shaftEnd.y + (perpendicular.y * headWidth * 0.5)
+        )
+        let rightHeadPoint = CGPoint(
+            x: shaftEnd.x - (perpendicular.x * headWidth * 0.5),
+            y: shaftEnd.y - (perpendicular.y * headWidth * 0.5)
+        )
+
+        let color = annotation.style.color.overlayColor.withAlphaComponent(alpha)
+
+        let arrowPath = NSBezierPath()
+        arrowPath.move(to: startLeft)
+        arrowPath.line(to: shaftLeft)
+        arrowPath.line(to: leftHeadPoint)
+        arrowPath.line(to: endPoint)
+        arrowPath.line(to: rightHeadPoint)
+        arrowPath.line(to: shaftRight)
+        arrowPath.line(to: startRight)
+        arrowPath.close()
+        color.setFill()
+        arrowPath.fill()
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -1001,4 +1431,9 @@ private final class RegionCaptureOverlayView: NSView {
             height: labelSize.height
         )
     }
+}
+
+struct RegionSelection {
+    let rect: CGRect
+    let originScreen: NSScreen
 }
