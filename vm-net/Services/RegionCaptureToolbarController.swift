@@ -13,6 +13,7 @@ final class RegionCaptureToolbarController: NSWindowController {
     struct State: Equatable {
         var isRectangleToolSelected: Bool
         var isEllipseToolSelected: Bool
+        var isPenToolSelected: Bool
         var isArrowToolSelected: Bool
         var selectedStrokeSize: RegionCaptureStrokeSize
         var selectedStrokeColor: RegionCaptureAnnotationColor
@@ -108,6 +109,7 @@ final class RegionCaptureToolbarController: NSWindowController {
     var cancelHandler: (() -> Void)?
     var rectangleToolHandler: (() -> Void)?
     var ellipseToolHandler: (() -> Void)?
+    var penToolHandler: (() -> Void)?
     var arrowToolHandler: (() -> Void)?
     var strokeSizeHandler: ((RegionCaptureStrokeSize) -> Void)?
     var strokeColorHandler: ((RegionCaptureAnnotationColor) -> Void)?
@@ -116,6 +118,7 @@ final class RegionCaptureToolbarController: NSWindowController {
     private var state = State(
         isRectangleToolSelected: false,
         isEllipseToolSelected: false,
+        isPenToolSelected: false,
         isArrowToolSelected: false,
         selectedStrokeSize: .medium,
         selectedStrokeColor: .blue,
@@ -140,6 +143,11 @@ final class RegionCaptureToolbarController: NSWindowController {
     private lazy var ellipseToolButton = makeSelectableToolButton(
         for: .ellipse,
         action: #selector(handleEllipseTool)
+    )
+
+    private lazy var penToolButton = makeSelectableToolButton(
+        for: .pen,
+        action: #selector(handlePenTool)
     )
 
     private lazy var arrowToolButton = makeSelectableToolButton(
@@ -307,8 +315,8 @@ final class RegionCaptureToolbarController: NSWindowController {
         let toolbarItems: [NSView] = [
             rectangleToolButton,
             ellipseToolButton,
+            penToolButton,
             arrowToolButton,
-            makeStaticOrnamentView(for: .pen),
             makeStaticOrnamentView(for: .mosaic),
             makeSeparator(),
             undoButton,
@@ -673,6 +681,7 @@ final class RegionCaptureToolbarController: NSWindowController {
     private func applyState() {
         rectangleToolButton.isPersistentSelected = state.isRectangleToolSelected
         ellipseToolButton.isPersistentSelected = state.isEllipseToolSelected
+        penToolButton.isPersistentSelected = state.isPenToolSelected
         arrowToolButton.isPersistentSelected = state.isArrowToolSelected
         undoButton.isEnabled = state.canUndo
         undoButton.isPersistentSelected = false
@@ -716,6 +725,11 @@ final class RegionCaptureToolbarController: NSWindowController {
     @objc
     private func handleEllipseTool() {
         ellipseToolHandler?()
+    }
+
+    @objc
+    private func handlePenTool() {
+        penToolHandler?()
     }
 
     @objc

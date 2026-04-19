@@ -16,6 +16,7 @@ enum RegionCaptureCommitAction: Sendable {
 enum RegionCaptureTool: Equatable {
     case rectangle
     case ellipse
+    case pen
     case arrow
 }
 
@@ -36,6 +37,17 @@ enum RegionCaptureStrokeSize: CaseIterable, Equatable, Sendable {
     }
 
     var outlineLineWidth: CGFloat {
+        switch self {
+        case .small:
+            return 2
+        case .medium:
+            return 3
+        case .large:
+            return 4
+        }
+    }
+
+    var penLineWidth: CGFloat {
         switch self {
         case .small:
             return 2
@@ -258,9 +270,44 @@ struct RegionCaptureEllipseAnnotation: Equatable, Sendable {
     }
 }
 
+struct RegionCapturePenAnnotation: Equatable, Sendable {
+    let points: [RegionCaptureNormalizedPoint]
+    let style: RegionCaptureAnnotationStyle
+
+    init(
+        points: [CGPoint],
+        in selectionRect: CGRect,
+        style: RegionCaptureAnnotationStyle
+    ) {
+        self.points = points.map {
+            RegionCaptureArrowAnnotation.normalized($0, in: selectionRect)
+        }
+        self.style = style
+    }
+
+    func points(in rect: CGRect) -> [CGPoint] {
+        points.map { $0.point(in: rect) }
+    }
+
+    func length(in rect: CGRect) -> CGFloat {
+        let resolvedPoints = points(in: rect)
+        guard resolvedPoints.count > 1 else { return 0 }
+
+        return zip(resolvedPoints, resolvedPoints.dropFirst()).reduce(0) {
+            partialResult,
+            pair in
+            partialResult + hypot(
+                pair.1.x - pair.0.x,
+                pair.1.y - pair.0.y
+            )
+        }
+    }
+}
+
 enum RegionCaptureAnnotation: Equatable, Sendable {
     case rectangle(RegionCaptureRectangleAnnotation)
     case ellipse(RegionCaptureEllipseAnnotation)
+    case pen(RegionCapturePenAnnotation)
     case arrow(RegionCaptureArrowAnnotation)
 }
 
@@ -272,6 +319,8 @@ final class RegionCaptureOverlaySession {
     private enum Layout {
         static let minimumSelectionSize: CGFloat = 8
         static let minimumShapeDimension: CGFloat = 8
+        static let minimumPenStrokeLength: CGFloat = 6
+        static let minimumPenPointDistance: CGFloat = 1.5
         static let minimumArrowLength: CGFloat = 10
     }
 
@@ -299,6 +348,9 @@ final class RegionCaptureOverlaySession {
         )
         case drawingEllipse(
             anchor: CGPoint,
+            screen: NSScreen
+        )
+        case drawingPen(
             screen: NSScreen
         )
         case drawingArrow(
@@ -346,6 +398,15 @@ final class RegionCaptureOverlaySession {
         return annotation
     }
 
+    private var draftPenAnnotation: RegionCapturePenAnnotation? {
+        guard case let .pen(annotation)? = draftAnnotation else {
+            return nil
+        }
+        return annotation
+    }
+
+    private var draftPenPoints: [CGPoint] = []
+
     init(
         screens: [NSScreen],
         onCommit: @escaping (
@@ -375,6 +436,9 @@ final class RegionCaptureOverlaySession {
         }
         toolbarController.ellipseToolHandler = { [weak self] in
             self?.toggleEllipseTool()
+        }
+        toolbarController.penToolHandler = { [weak self] in
+            self?.togglePenTool()
         }
         toolbarController.arrowToolHandler = { [weak self] in
             self?.toggleArrowTool()
@@ -532,6 +596,26 @@ final class RegionCaptureOverlaySession {
         }
 
         if
+            activeTool == .pen,
+            let selection = currentSelection,
+            selection.originScreen == screen,
+            selection.rect.contains(clampedPoint),
+            !isDefaultFullscreenSelection
+        {
+            let anchor = clamp(clampedPoint, to: selection.rect)
+            interaction = .drawingPen(screen: screen)
+            draftPenPoints = [anchor]
+            draftAnnotation = .pen(
+                makePenAnnotation(
+                    points: draftPenPoints,
+                    in: selection.rect
+                )
+            )
+            renderSelectionUI()
+            return
+        }
+
+        if
             activeTool == .arrow,
             let selection = currentSelection,
             selection.originScreen == screen,
@@ -664,6 +748,24 @@ final class RegionCaptureOverlaySession {
             )
             renderSelectionUI()
 
+        case let .drawingPen(screen):
+            guard
+                let selection = currentSelection,
+                selection.originScreen == screen
+            else {
+                return
+            }
+
+            let clampedPoint = clamp(point, to: selection.rect)
+            appendDraftPenPoint(clampedPoint)
+            draftAnnotation = .pen(
+                makePenAnnotation(
+                    points: draftPenPoints,
+                    in: selection.rect
+                )
+            )
+            renderSelectionUI()
+
         case let .drawingArrow(anchor, screen):
             guard
                 let selection = currentSelection,
@@ -740,6 +842,20 @@ final class RegionCaptureOverlaySession {
                 annotations.append(.ellipse(ellipse))
             }
             self.draftAnnotation = nil
+            self.draftPenPoints.removeAll()
+            renderSelectionUI()
+
+        case .drawingPen:
+            if
+                let currentSelection,
+                let pen = draftPenAnnotation,
+                pen.length(in: currentSelection.rect)
+                    >= Layout.minimumPenStrokeLength
+            {
+                annotations.append(.pen(pen))
+            }
+            self.draftAnnotation = nil
+            self.draftPenPoints.removeAll()
             renderSelectionUI()
 
         case .drawingArrow:
@@ -752,6 +868,7 @@ final class RegionCaptureOverlaySession {
                 annotations.append(.arrow(arrow))
             }
             self.draftAnnotation = nil
+            self.draftPenPoints.removeAll()
             renderSelectionUI()
         }
     }
@@ -785,6 +902,7 @@ final class RegionCaptureOverlaySession {
             activeTool = nil
             annotations.removeAll()
             draftAnnotation = nil
+            draftPenPoints.removeAll()
         }
 
         renderSelectionUI()
@@ -797,7 +915,7 @@ final class RegionCaptureOverlaySession {
             && !isDefaultFullscreenSelection
         let isAnnotationInteraction: Bool
         switch interaction {
-        case .drawingRectangle?, .drawingEllipse?, .drawingArrow?:
+        case .drawingRectangle?, .drawingEllipse?, .drawingPen?, .drawingArrow?:
             isAnnotationInteraction = true
         default:
             isAnnotationInteraction = false
@@ -805,11 +923,13 @@ final class RegionCaptureOverlaySession {
         let activeAnnotationTool = activeTool
         let isRectangleToolActive = activeAnnotationTool == .rectangle
         let isEllipseToolActive = activeAnnotationTool == .ellipse
+        let isPenToolActive = activeAnnotationTool == .pen
         let isArrowToolActive = activeAnnotationTool == .arrow
         let canUndo = !annotations.isEmpty
         let secondaryToolVisible = activeAnnotationTool != nil
         let selectedRectangle = isRectangleToolActive
         let selectedEllipse = isEllipseToolActive
+        let selectedPen = isPenToolActive
         let selectedArrow = isArrowToolActive
 
         let canShowEditingControls =
@@ -847,6 +967,7 @@ final class RegionCaptureOverlaySession {
             state: .init(
                 isRectangleToolSelected: selectedRectangle,
                 isEllipseToolSelected: selectedEllipse,
+                isPenToolSelected: selectedPen,
                 isArrowToolSelected: selectedArrow,
                 selectedStrokeSize: annotationStyle.size,
                 selectedStrokeColor: annotationStyle.color,
@@ -882,6 +1003,7 @@ final class RegionCaptureOverlaySession {
 
         activeTool = activeTool == .arrow ? nil : .arrow
         draftAnnotation = nil
+        draftPenPoints.removeAll()
         renderSelectionUI()
     }
 
@@ -892,6 +1014,7 @@ final class RegionCaptureOverlaySession {
 
         activeTool = activeTool == .rectangle ? nil : .rectangle
         draftAnnotation = nil
+        draftPenPoints.removeAll()
         renderSelectionUI()
     }
 
@@ -902,6 +1025,18 @@ final class RegionCaptureOverlaySession {
 
         activeTool = activeTool == .ellipse ? nil : .ellipse
         draftAnnotation = nil
+        draftPenPoints.removeAll()
+        renderSelectionUI()
+    }
+
+    private func togglePenTool() {
+        guard (currentSelection.map(isValid(selection:)) ?? false) else {
+            return
+        }
+
+        activeTool = activeTool == .pen ? nil : .pen
+        draftAnnotation = nil
+        draftPenPoints.removeAll()
         renderSelectionUI()
     }
 
@@ -958,6 +1093,32 @@ final class RegionCaptureOverlaySession {
             in: selectionRect,
             style: annotationStyle
         )
+    }
+
+    private func makePenAnnotation(
+        points: [CGPoint],
+        in selectionRect: CGRect
+    ) -> RegionCapturePenAnnotation {
+        RegionCapturePenAnnotation(
+            points: points,
+            in: selectionRect,
+            style: annotationStyle
+        )
+    }
+
+    private func appendDraftPenPoint(_ point: CGPoint) {
+        guard let lastPoint = draftPenPoints.last else {
+            draftPenPoints = [point]
+            return
+        }
+
+        let distance = hypot(point.x - lastPoint.x, point.y - lastPoint.y)
+        guard distance >= Layout.minimumPenPointDistance else {
+            draftPenPoints[draftPenPoints.count - 1] = point
+            return
+        }
+
+        draftPenPoints.append(point)
     }
 
     private func isValid(selection: RegionSelection) -> Bool {
@@ -1494,6 +1655,8 @@ private final class RegionCaptureOverlayView: NSView {
             drawRectangle(rectangle, in: rect, alpha: alpha)
         case let .ellipse(ellipse):
             drawEllipse(ellipse, in: rect, alpha: alpha)
+        case let .pen(pen):
+            drawPen(pen, in: rect, alpha: alpha)
         case let .arrow(arrow):
             drawArrow(arrow, in: rect, alpha: alpha)
         }
@@ -1537,6 +1700,25 @@ private final class RegionCaptureOverlayView: NSView {
         ellipsePath.lineWidth = lineWidth
         color.setStroke()
         ellipsePath.stroke()
+    }
+
+    private func drawPen(
+        _ annotation: RegionCapturePenAnnotation,
+        in rect: CGRect,
+        alpha: CGFloat
+    ) {
+        let points = annotation.points(in: rect)
+        guard points.count > 1 else { return }
+
+        let color = annotation.style.color.overlayColor.withAlphaComponent(alpha)
+        let penPath = NSBezierPath()
+        penPath.lineCapStyle = .round
+        penPath.lineJoinStyle = .round
+        penPath.lineWidth = annotation.style.size.penLineWidth
+        penPath.move(to: points[0])
+        points.dropFirst().forEach { penPath.line(to: $0) }
+        color.setStroke()
+        penPath.stroke()
     }
 
     private func drawArrow(

@@ -403,6 +403,13 @@ private enum RegionScreenshotPipeline {
                     scale: scale,
                     context: context
                 )
+            case let .pen(pen):
+                drawPen(
+                    pen,
+                    in: drawingRect,
+                    scale: scale,
+                    context: context
+                )
             case let .arrow(arrow):
                 drawArrow(
                     arrow,
@@ -456,6 +463,24 @@ private enum RegionScreenshotPipeline {
         context.setStrokeColor(annotation.style.color.cgColor)
         context.setLineWidth(lineWidth)
         context.strokeEllipse(in: strokeRect)
+    }
+
+    private static func drawPen(
+        _ annotation: RegionCapturePenAnnotation,
+        in rect: CGRect,
+        scale: CGFloat,
+        context: CGContext
+    ) {
+        let points = annotation.points(in: rect)
+        guard points.count > 1 else { return }
+
+        context.setStrokeColor(annotation.style.color.cgColor)
+        context.setLineWidth(annotation.style.size.penLineWidth * scale)
+        context.setLineCap(.round)
+        context.setLineJoin(.round)
+        context.beginPath()
+        context.addLines(between: points)
+        context.strokePath()
     }
 
     private static func drawArrow(
