@@ -127,7 +127,7 @@ final class RegionCaptureToolbarController: NSWindowController {
     init() {
         let panel = RegionCaptureToolbarPanel(
             contentRect: .zero,
-            styleMask: [.borderless],
+            styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
@@ -156,7 +156,7 @@ final class RegionCaptureToolbarController: NSWindowController {
 
         window.setFrame(frame, display: false)
         window.alphaValue = 1
-        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
     }
 
     func hide() {
@@ -438,7 +438,7 @@ final class RegionCaptureToolbarController: NSWindowController {
 
 private final class RegionCaptureToolbarPanel: NSPanel {
 
-    override var canBecomeKey: Bool { true }
+    override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 }
 

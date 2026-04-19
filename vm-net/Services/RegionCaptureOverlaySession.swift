@@ -328,7 +328,7 @@ final class RegionCaptureOverlaySession {
         let usesCrosshairCursor =
             !(currentSelection.map(isValid(selection:)) ?? false)
             || isDefaultFullscreenSelection
-        let allowsOverlayKeyFocus = !hasEditableSelection
+        let allowsOverlayKeyFocus = true
 
         overlayControllers.forEach { controller in
             controller.selectionRect = rect
@@ -669,6 +669,7 @@ private final class RegionCaptureOverlayView: NSView {
         static let strokeColor = NSColor.systemBlue
         static let strokeWidth: CGFloat = 2
         static let selectionMaskColor = NSColor.black.withAlphaComponent(0.38)
+        static let selectionInteractionFillColor = NSColor.white.withAlphaComponent(0.001)
         static let handleDiameter: CGFloat = 6
         static let handleBorderWidth: CGFloat = 2
         static let labelInset: CGFloat = 8
@@ -775,6 +776,8 @@ private final class RegionCaptureOverlayView: NSView {
 
         guard localRect.intersects(bounds) else { return }
 
+        drawInteractionCaptureFill(in: localRect)
+
         let strokePath = NSBezierPath(rect: localRect)
         strokePath.lineWidth = Appearance.strokeWidth
         Appearance.strokeColor.setStroke()
@@ -802,6 +805,18 @@ private final class RegionCaptureOverlayView: NSView {
         path.windingRule = .evenOdd
         Appearance.selectionMaskColor.setFill()
         path.fill()
+    }
+
+    private func drawInteractionCaptureFill(in localRect: CGRect) {
+        guard showsSelectionMask else { return }
+
+        let visibleSelectionRect = localRect.intersection(bounds)
+        guard !visibleSelectionRect.isNull, !visibleSelectionRect.isEmpty else {
+            return
+        }
+
+        Appearance.selectionInteractionFillColor.setFill()
+        visibleSelectionRect.fill()
     }
 
     override func mouseDown(with event: NSEvent) {
