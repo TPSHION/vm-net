@@ -184,16 +184,6 @@
 "activity.process.error.status" = "The process activity collector exited with status %d.";
 "activity.process.controls.filter" = "Filter";
 "activity.process.controls.sort" = "Sort";
-"activity.process.actions.button" = "End Process";
-"activity.process.actions.dialog.title" = "End %@";
-"activity.process.actions.dialog.message" = "Choose a normal termination or force quit for %@ (PID %2$d).";
-"activity.process.actions.terminate" = "Terminate";
-"activity.process.actions.forceQuit" = "Force Quit";
-"activity.process.action.success.terminate" = "Requested termination for %@ (PID %2$d).";
-"activity.process.action.success.forceQuit" = "Requested force quit for %@ (PID %2$d).";
-"activity.process.action.failure" = "Could not end %@: %@";
-"activity.process.action.error.invalidPID" = "The process ID is invalid.";
-"activity.process.action.error.currentApp" = "The current vm-net process cannot be terminated.";
 "activity.process.filter.all" = "All";
 "activity.process.filter.background" = "Background";
 "activity.process.filter.alerted" = "Alerted";

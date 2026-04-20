@@ -9,12 +9,6 @@ import SwiftUI
 
 struct NetworkActivityPageView: View {
 
-    private struct ProcessActionFeedback: Identifiable {
-        let id = UUID()
-        let message: String
-        let isError: Bool
-    }
-
     private enum ProcessSortOption: String, CaseIterable, Identifiable {
         case total
         case download
@@ -70,11 +64,8 @@ struct NetworkActivityPageView: View {
     @State private var sortOption: ProcessSortOption = .total
     @State private var filterOption: ProcessFilterOption = .all
     @State private var searchQuery = ""
-    @State private var terminationCandidate: ProcessTrafficProcessRecord?
-    @State private var processActionFeedback: ProcessActionFeedback?
 
     private let byteRateFormatter = ByteRateFormatter()
-    private let processTerminationService = ProcessTerminationService()
 
     private var processSnapshot: ProcessTrafficSnapshot {
         processTrafficStore.snapshot
@@ -112,31 +103,6 @@ struct NetworkActivityPageView: View {
         .onDisappear {
             processTrafficStore.deactivateMonitoring()
         }
-        .confirmationDialog(
-            terminationDialogTitle,
-            isPresented: terminationDialogPresented,
-            titleVisibility: .visible,
-            presenting: terminationCandidate
-        ) { process in
-            Button(L10n.tr("activity.process.actions.terminate")) {
-                performProcessAction(.graceful, for: process)
-            }
-
-            Button(
-                L10n.tr("activity.process.actions.forceQuit"),
-                role: .destructive
-            ) {
-                performProcessAction(.force, for: process)
-            }
-        } message: { process in
-            Text(
-                L10n.tr(
-                    "activity.process.actions.dialog.message",
-                    process.processName,
-                    process.pid
-                )
-            )
-        }
     }
 
     private var headerRow: some View {
@@ -171,17 +137,6 @@ struct NetworkActivityPageView: View {
                     Text(errorMessage)
                         .font(.system(size: 12))
                         .foregroundStyle(Color(nsColor: .systemRed))
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                if let processActionFeedback {
-                    Text(processActionFeedback.message)
-                        .font(.system(size: 12))
-                        .foregroundStyle(
-                            processActionFeedback.isError
-                                ? Color(nsColor: .systemRed)
-                                : Color(nsColor: .systemGreen)
-                        )
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -418,17 +373,6 @@ struct NetworkActivityPageView: View {
                 }
 
                 Spacer(minLength: 12)
-
-                Button {
-                    terminationCandidate = process
-                } label: {
-                    Label(
-                        L10n.tr("activity.process.actions.button"),
-                        systemImage: "power"
-                    )
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
             }
 
             HStack(spacing: 10) {
@@ -501,28 +445,6 @@ struct NetworkActivityPageView: View {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor).opacity(0.55))
         )
-    }
-
-    private var terminationDialogPresented: Binding<Bool> {
-        Binding(
-            get: { terminationCandidate != nil },
-            set: { isPresented in
-                if !isPresented {
-                    terminationCandidate = nil
-                }
-            }
-        )
-    }
-
-    private var terminationDialogTitle: String {
-        if let process = terminationCandidate {
-            return L10n.tr(
-                "activity.process.actions.dialog.title",
-                process.processName
-            )
-        }
-
-        return L10n.tr("activity.process.actions.button")
     }
 
     private func processMetricBadge(
@@ -767,51 +689,7 @@ struct NetworkActivityPageView: View {
         return formatter.string(fromByteCount: Int64(max(bytes, 0).rounded()))
     }
 
-    private func performProcessAction(
-        _ mode: ProcessTerminationMode,
-        for process: ProcessTrafficProcessRecord
-    ) {
-        terminationCandidate = nil
-
-        do {
-            let result = try processTerminationService.terminate(process, mode: mode)
-            let message: String
-
-            switch result.mode {
-            case .graceful:
-                message = L10n.tr(
-                    "activity.process.action.success.terminate",
-                    process.processName,
-                    process.pid
-                )
-            case .force:
-                message = L10n.tr(
-                    "activity.process.action.success.forceQuit",
-                    process.processName,
-                    process.pid
-                )
-            }
-
-            processActionFeedback = ProcessActionFeedback(
-                message: message,
-                isError: false
-            )
-        } catch {
-            let reason = error.localizedDescription
-            processActionFeedback = ProcessActionFeedback(
-                message: L10n.tr(
-                    "activity.process.action.failure",
-                    process.processName,
-                    reason
-                ),
-                isError: true
-            )
-        }
-    }
-
     private func toggleAnalysis() {
-        processActionFeedback = nil
-
         if processTrafficStore.isMonitoring {
             processTrafficStore.deactivateMonitoring()
         } else {

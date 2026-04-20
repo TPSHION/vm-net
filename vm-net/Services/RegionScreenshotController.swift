@@ -281,7 +281,7 @@ final class RegionScreenshotController: ObservableObject {
         }
     }
 
-    private func preferredSaveDirectoryURL() -> URL {
+    private func preferredSaveDirectoryURL() -> URL? {
         if let lastSaveDirectoryURL {
             return lastSaveDirectoryURL
         }
@@ -290,10 +290,7 @@ final class RegionScreenshotController: ObservableObject {
             return lastCaptureURL.deletingLastPathComponent()
         }
 
-        return FileManager.default.urls(
-            for: .picturesDirectory,
-            in: .userDomainMask
-        ).first ?? FileManager.default.temporaryDirectory
+        return nil
     }
 
     private func suggestedFileName() -> String {

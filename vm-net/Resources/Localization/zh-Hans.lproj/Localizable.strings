@@ -184,16 +184,6 @@
 "activity.process.error.status" = "进程活动采集器退出，状态码 %d。";
 "activity.process.controls.filter" = "筛选范围";
 "activity.process.controls.sort" = "排序方式";
-"activity.process.actions.button" = "结束进程";
-"activity.process.actions.dialog.title" = "结束 %@";
-"activity.process.actions.dialog.message" = "选择对 %@（PID %2$d）执行普通结束还是强制关闭。";
-"activity.process.actions.terminate" = "普通结束";
-"activity.process.actions.forceQuit" = "强制关闭";
-"activity.process.action.success.terminate" = "已请求普通结束 %@（PID %2$d）。";
-"activity.process.action.success.forceQuit" = "已请求强制关闭 %@（PID %2$d）。";
-"activity.process.action.failure" = "无法结束 %@：%@";
-"activity.process.action.error.invalidPID" = "无效的进程 ID。";
-"activity.process.action.error.currentApp" = "不能结束当前 vm-net 进程。";
 "activity.process.filter.all" = "全部";
 "activity.process.filter.background" = "后台";
 "activity.process.filter.alerted" = "已提醒";
