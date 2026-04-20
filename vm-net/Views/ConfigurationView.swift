@@ -66,41 +66,99 @@ struct ConfigurationView: View {
     @ObservedObject var activityTimelineStore: ActivityTimelineStore
     @ObservedObject var speedTestStore: SpeedTestStore
     @ObservedObject var diagnosisStore: NetworkDiagnosisStore
+    @ObservedObject var regionScreenshotController: RegionScreenshotController
     let onFloatingBallToggle: (Bool) -> Void
     let onDesktopPetToggle: (Bool) -> Void
     let onDesktopPetRoamingToggle: (Bool) -> Void
     let onDesktopPetAssetApply: (DesktopPetAssetID) -> Void
+    let onRegionScreenshotRequest: () -> Void
     @StateObject private var appStoreUpdateStore = AppStoreUpdateStore()
 
     var body: some View {
-        Group {
-            switch navigationStore.page {
-            case .settings:
-                settingsPage
-            case .activity:
-                activityPage
-            case .speedTest:
-                speedTestPage
-            case .diagnosis:
-                diagnosisPage
-            case .desktopPet:
-                desktopPetPage
-            }
+        NavigationSplitView {
+            sidebar
+                .navigationSplitViewColumnWidth(min: 220, ideal: 244, max: 280)
+        } detail: {
+            detailContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .padding(.horizontal, 24)
         }
+        .navigationSplitViewStyle(.balanced)
         .environment(\.locale, preferences.appLanguage.locale)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(.horizontal, 24)
     }
 
-    private var settingsPage: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            headerSection
+    private var sidebarSelection: Binding<ConfigurationPage?> {
+        Binding(
+            get: { navigationStore.page },
+            set: { selection in
+                guard let selection else { return }
+                navigationStore.show(selection)
+            }
+        )
+    }
+
+    private var sidebar: some View {
+        List(selection: sidebarSelection) {
+            ForEach(ConfigurationPageGroup.allCases) { group in
+                Section {
+                    ForEach(group.pages) { page in
+                        NavigationLink(value: page) {
+                            ConfigurationSidebarRow(page: page)
+                        }
+                    }
+                } header: {
+                    Text(group.title)
+                }
+            }
+        }
+        .listStyle(.sidebar)
+        .id(preferences.appLanguage.rawValue)
+    }
+
+    @ViewBuilder
+    private var detailContent: some View {
+        switch navigationStore.page {
+        case .overview:
+            overviewPage
+        case .quickFeatures:
+            quickFeaturesPage
+        case .activity:
+            activityPage
+        case .diagnosis:
+            diagnosisPage
+        case .speedTest:
+            speedTestPage
+        case .desktopPet:
+            desktopPetPage
+        case .preferences:
+            preferencesPage
+        }
+    }
+
+    private var overviewPage: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            overviewFixedHeaderSection
 
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 18) {
+                    overviewSubtitleSection
                     dashboardSection
                     quickActionsSection
-                    eventSummarySection
+                }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding(.bottom, 12)
+            }
+            .vmNetScrollBarsHidden()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var preferencesPage: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            preferencesHeaderSection
+
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 18) {
                     launchSection
                     presentationSection
                     activitySection
@@ -108,16 +166,27 @@ struct ConfigurationView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 12)
             }
-            .scrollIndicators(.hidden)
+            .vmNetScrollBarsHidden()
         }
-        .padding(.top, 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var quickFeaturesPage: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 18) {
+                    shortcutsSection
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 12)
+            }
+            .vmNetScrollBarsHidden()
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var speedTestPage: some View {
-        SpeedTestPageView(store: speedTestStore) {
-            navigationStore.show(.settings)
-        }
+        SpeedTestPageView(store: speedTestStore)
     }
 
     private var dashboardSection: some View {
@@ -176,6 +245,27 @@ struct ConfigurationView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                 }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 10) {
+                    overviewSupplementTitle(L10n.tr("settings.dashboard.recentDiagnosis"))
+                    diagnosisSummaryCard
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    overviewSupplementTitle(L10n.tr("settings.dashboard.recentEvents"))
+
+                    if recentTimelineEvents.isEmpty {
+                        Text(L10n.tr("settings.events.empty"))
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(recentTimelineEvents) { event in
+                            timelineSummaryRow(event)
+                        }
+                    }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(6)
@@ -229,66 +319,54 @@ struct ConfigurationView: View {
         }
     }
 
-    private var eventSummarySection: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                diagnosisSummaryCard
-
-                Divider()
-
-                if recentTimelineEvents.isEmpty {
-                    Text(L10n.tr("settings.events.empty"))
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(recentTimelineEvents) { event in
-                        timelineSummaryRow(event)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(4)
-        } label: {
-            Text(L10n.tr("settings.events.sectionTitle"))
-        }
-    }
-
     private var diagnosisPage: some View {
-        NetworkDiagnosisPageView(store: diagnosisStore) {
-            navigationStore.show(.settings)
-        }
+        NetworkDiagnosisPageView(store: diagnosisStore)
     }
 
     private var activityPage: some View {
         NetworkActivityPageView(
-            throughputStore: throughputStore,
             processTrafficStore: processTrafficStore,
             alertStore: alertStore,
             activityTimelineStore: activityTimelineStore
-        ) {
-            navigationStore.show(.settings)
-        }
+        )
     }
 
     private var desktopPetPage: some View {
         DesktopPetSettingsPageView(
             preferences: preferences,
             desktopPetAccessStore: desktopPetAccessStore,
-            onBack: {
-                navigationStore.show(.settings)
-            },
             onDesktopPetToggle: onDesktopPetToggle,
             onDesktopPetRoamingToggle: onDesktopPetRoamingToggle,
             onDesktopPetAssetApply: onDesktopPetAssetApply
         )
     }
 
-    private var headerSection: some View {
+    private var overviewHeaderSection: some View {
+        pageTitleBlock(
+            title: L10n.tr("navigation.overview.title"),
+            subtitle: L10n.tr("navigation.overview.subtitle")
+        )
+    }
+
+    private var overviewFixedHeaderSection: some View {
+        Text(L10n.tr("navigation.overview.title"))
+            .font(.system(size: 24, weight: .semibold))
+    }
+
+    private var overviewSubtitleSection: some View {
+        Text(L10n.tr("navigation.overview.subtitle"))
+            .font(.system(size: 13))
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var preferencesHeaderSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(L10n.tr("settings.header.subtitle"))
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
+            HStack(alignment: .top, spacing: 12) {
+                pageTitleBlock(
+                    title: L10n.tr("navigation.preferences.title"),
+                    subtitle: L10n.tr("navigation.preferences.subtitle")
+                )
 
                 Spacer(minLength: 0)
 
@@ -318,6 +396,27 @@ struct ConfigurationView: View {
                     .foregroundStyle(updateMessageColor)
             }
         }
+    }
+
+    private func pageTitleBlock(
+        title: String,
+        subtitle: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.system(size: 24, weight: .semibold))
+
+            Text(subtitle)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func overviewSupplementTitle(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(.secondary)
     }
 
     private var updateMessageColor: Color {
@@ -534,6 +633,59 @@ struct ConfigurationView: View {
         }
     }
 
+    private var shortcutsSection: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 14) {
+                ViewThatFits(in: .horizontal) {
+                    shortcutActionRow
+                    shortcutActionColumn
+                }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text(L10n.tr("settings.shortcuts.screenshot.shortcut"))
+                            .font(.system(size: 13, weight: .medium))
+
+                        Spacer(minLength: 12)
+
+                        KeyboardShortcutRecorder(shortcut: $preferences.screenshotShortcut)
+                    }
+
+                    Text(L10n.tr("settings.shortcuts.screenshot.shortcutHint"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+
+                    Button(L10n.tr("settings.shortcuts.screenshot.restoreDefault")) {
+                        preferences.screenshotShortcut = .defaultRegionScreenshot
+                    }
+                    .controlSize(.small)
+                }
+
+                if regionScreenshotController.needsPermission {
+                    Divider()
+
+                    ViewThatFits(in: .horizontal) {
+                        shortcutPermissionRow
+                        shortcutPermissionColumn
+                    }
+                }
+
+                if let statusMessage = regionScreenshotController.statusMessage {
+                    Text(statusMessage)
+                        .font(.system(size: 12))
+                        .foregroundStyle(screenshotStatusColor)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(4)
+        } label: {
+            Text(L10n.tr("settings.features.sectionTitle"))
+        }
+    }
+
     private var diagnosisSummaryCard: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: diagnosisSummarySymbolName)
@@ -617,6 +769,17 @@ struct ConfigurationView: View {
 
     private var backgroundTransparencySummary: String {
         "\(Int(round(preferences.floatingBallBackgroundTransparency * 100)))%"
+    }
+
+    private var screenshotStatusColor: Color {
+        switch regionScreenshotController.statusKind {
+        case .neutral:
+            return .secondary
+        case .success:
+            return Color(nsColor: .systemGreen)
+        case .error:
+            return Color(nsColor: .systemRed)
+        }
     }
 
     private var launchAtLoginBinding: Binding<Bool> {
@@ -806,6 +969,62 @@ struct ConfigurationView: View {
         }
     }
 
+    private var shortcutActionRow: some View {
+        HStack(spacing: 12) {
+            Text(L10n.tr("settings.shortcuts.screenshot.manualHint"))
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 12)
+
+            Button(L10n.tr("settings.shortcuts.screenshot.start")) {
+                onRegionScreenshotRequest()
+            }
+            .controlSize(.small)
+        }
+    }
+
+    private var shortcutActionColumn: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.tr("settings.shortcuts.screenshot.manualHint"))
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+
+            Button(L10n.tr("settings.shortcuts.screenshot.start")) {
+                onRegionScreenshotRequest()
+            }
+            .controlSize(.small)
+        }
+    }
+
+    private var shortcutPermissionRow: some View {
+        HStack(spacing: 12) {
+            Text(L10n.tr("settings.shortcuts.screenshot.permissionHint"))
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 12)
+
+            Button(L10n.tr("settings.shortcuts.screenshot.openSystemSettings")) {
+                regionScreenshotController.openSystemSettings()
+            }
+            .controlSize(.small)
+        }
+    }
+
+    private var shortcutPermissionColumn: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.tr("settings.shortcuts.screenshot.permissionHint"))
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+
+            Button(L10n.tr("settings.shortcuts.screenshot.openSystemSettings")) {
+                regionScreenshotController.openSystemSettings()
+            }
+            .controlSize(.small)
+        }
+    }
+
     private var appearanceFooterRow: some View {
         HStack(spacing: 12) {
             Text(L10n.tr("settings.presentation.appearanceApplyHint"))
@@ -907,7 +1126,7 @@ struct ConfigurationView: View {
                     }
                     .padding(.vertical, 1)
                 }
-                .scrollIndicators(.hidden)
+                .vmNetScrollBarsHidden()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
@@ -1212,5 +1431,26 @@ struct ConfigurationView: View {
         case .failure:
             return "xmark.shield.fill"
         }
+    }
+}
+
+private struct ConfigurationSidebarRow: View {
+
+    let page: ConfigurationPage
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: page.symbolName)
+                .foregroundStyle(.secondary)
+                .frame(width: 16)
+
+            Text(page.title)
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .padding(.vertical, 2)
     }
 }

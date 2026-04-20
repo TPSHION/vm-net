@@ -11,7 +11,7 @@ import SwiftUI
 struct SpeedTestPageView: View {
 
     @ObservedObject var store: SpeedTestStore
-    let onBack: () -> Void
+    let onBack: (() -> Void)? = nil
 
     private var snapshot: SpeedTestSnapshot {
         store.snapshot
@@ -39,19 +39,38 @@ struct SpeedTestPageView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             headerRow
-            statusSection
-            metricsSection
-            historySection
-            Spacer(minLength: 0)
+
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 18) {
+                    statusSection
+                    metricsSection
+                    historySection
+                }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding(.bottom, 12)
+            }
+            .vmNetScrollBarsHidden()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var headerRow: some View {
         HStack(spacing: 12) {
-            Button(action: onBack) {
-                Label(L10n.tr("navigation.backToSettings"), systemImage: "chevron.left")
+            if let onBack {
+                Button(action: onBack) {
+                    Label(L10n.tr("navigation.backToSettings"), systemImage: "chevron.left")
+                }
+                .buttonStyle(.link)
             }
-            .buttonStyle(.link)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.tr("navigation.speedTest.title"))
+                    .font(.system(size: 18, weight: .semibold))
+
+                Text(L10n.tr("navigation.speedTest.subtitle"))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
 
             Spacer(minLength: 0)
 
@@ -188,6 +207,7 @@ struct SpeedTestPageView: View {
                     }
                     .padding(.vertical, 2)
                 }
+                .vmNetScrollBarsHidden()
                 .frame(maxHeight: 220)
                 .padding(8)
             }

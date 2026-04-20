@@ -12,7 +12,7 @@ struct DesktopPetSettingsPageView: View {
 
     @ObservedObject var preferences: AppPreferences
     @ObservedObject var desktopPetAccessStore: DesktopPetAccessStore
-    let onBack: () -> Void
+    let onBack: (() -> Void)?
     let onDesktopPetToggle: (Bool) -> Void
     let onDesktopPetRoamingToggle: (Bool) -> Void
     let onDesktopPetAssetApply: (DesktopPetAssetID) -> Void
@@ -21,7 +21,7 @@ struct DesktopPetSettingsPageView: View {
     init(
         preferences: AppPreferences,
         desktopPetAccessStore: DesktopPetAccessStore,
-        onBack: @escaping () -> Void,
+        onBack: (() -> Void)? = nil,
         onDesktopPetToggle: @escaping (Bool) -> Void,
         onDesktopPetRoamingToggle: @escaping (Bool) -> Void,
         onDesktopPetAssetApply: @escaping (DesktopPetAssetID) -> Void
@@ -45,7 +45,7 @@ struct DesktopPetSettingsPageView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .scrollIndicators(.hidden)
+            .vmNetScrollBarsHidden()
         }
         .onChange(of: preferences.desktopPetAssetID) { newValue in
             guard !hasPendingPetSelection else { return }
@@ -59,10 +59,21 @@ struct DesktopPetSettingsPageView: View {
 
     private var headerRow: some View {
         HStack(spacing: 12) {
-            Button(action: onBack) {
-                Label(L10n.tr("navigation.backToSettings"), systemImage: "chevron.left")
+            if let onBack {
+                Button(action: onBack) {
+                    Label(L10n.tr("navigation.backToSettings"), systemImage: "chevron.left")
+                }
+                .buttonStyle(.link)
             }
-            .buttonStyle(.link)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.tr("navigation.desktopPet.title"))
+                    .font(.system(size: 18, weight: .semibold))
+
+                Text(L10n.tr("navigation.desktopPet.subtitle"))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
 
             Spacer(minLength: 0)
 
@@ -435,7 +446,7 @@ struct DesktopPetSettingsPageView: View {
             }
             .padding(.vertical, 1)
         }
-        .scrollIndicators(.hidden)
+        .vmNetScrollBarsHidden()
     }
 
     private var accessTimelineSummary: String? {

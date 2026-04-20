@@ -34,6 +34,7 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenu
 
     var openWindowHandler: (() -> Void)?
     var openNetworkActivityHandler: (() -> Void)?
+    var captureRegionHandler: (() -> Void)?
     var frameChangeHandler: ((CGRect, NSScreen?) -> Void)?
 
     var currentFrame: CGRect? {
@@ -121,7 +122,9 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenu
         let menu = AppControlMenuFactory.makeMenu(
             target: self,
             openWindowSelector: #selector(handleOpenWindow),
-            openActivitySelector: #selector(handleOpenNetworkActivity)
+            openActivitySelector: #selector(handleOpenNetworkActivity),
+            screenshotSelector: #selector(handleCaptureRegion),
+            screenshotShortcut: preferences.screenshotShortcut
         )
         menu.delegate = self
         contentView.menu = menu
@@ -156,6 +159,14 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenu
 
         preferences.$appLanguage
             .dropFirst()
+            .sink { [weak self] _ in
+                self?.refreshMenuLocalization()
+            }
+            .store(in: &cancellables)
+
+        preferences.$screenshotShortcut
+            .dropFirst()
+            .removeDuplicates()
             .sink { [weak self] _ in
                 self?.refreshMenuLocalization()
             }
@@ -200,12 +211,19 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenu
         openNetworkActivityHandler?()
     }
 
+    @objc
+    private func handleCaptureRegion() {
+        captureRegionHandler?()
+    }
+
     func menuNeedsUpdate(_ menu: NSMenu) {
         AppControlMenuFactory.populateMenu(
             menu,
             target: self,
             openWindowSelector: #selector(handleOpenWindow),
-            openActivitySelector: #selector(handleOpenNetworkActivity)
+            openActivitySelector: #selector(handleOpenNetworkActivity),
+            screenshotSelector: #selector(handleCaptureRegion),
+            screenshotShortcut: preferences.screenshotShortcut
         )
     }
 
@@ -215,7 +233,9 @@ final class FloatingBallController: NSWindowController, NSWindowDelegate, NSMenu
             menu,
             target: self,
             openWindowSelector: #selector(handleOpenWindow),
-            openActivitySelector: #selector(handleOpenNetworkActivity)
+            openActivitySelector: #selector(handleOpenNetworkActivity),
+            screenshotSelector: #selector(handleCaptureRegion),
+            screenshotShortcut: preferences.screenshotShortcut
         )
     }
 

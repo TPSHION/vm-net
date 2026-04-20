@@ -32,6 +32,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     var openWindowHandler: (() -> Void)?
     var openNetworkActivityHandler: (() -> Void)?
+    var captureRegionHandler: (() -> Void)?
 
     init(
         store: ThroughputStore,
@@ -57,13 +58,17 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             ?? AppControlMenuFactory.makeMenu(
                 target: self,
                 openWindowSelector: #selector(handleOpenWindow),
-                openActivitySelector: #selector(handleOpenNetworkActivity)
+                openActivitySelector: #selector(handleOpenNetworkActivity),
+                screenshotSelector: #selector(handleCaptureRegion),
+                screenshotShortcut: preferences.screenshotShortcut
             )
         AppControlMenuFactory.populateMenu(
             menu,
             target: self,
             openWindowSelector: #selector(handleOpenWindow),
-            openActivitySelector: #selector(handleOpenNetworkActivity)
+            openActivitySelector: #selector(handleOpenNetworkActivity),
+            screenshotSelector: #selector(handleCaptureRegion),
+            screenshotShortcut: preferences.screenshotShortcut
         )
         menu.delegate = self
         statusItem.menu = menu
@@ -114,7 +119,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             menu,
             target: self,
             openWindowSelector: #selector(handleOpenWindow),
-            openActivitySelector: #selector(handleOpenNetworkActivity)
+            openActivitySelector: #selector(handleOpenNetworkActivity),
+            screenshotSelector: #selector(handleCaptureRegion),
+            screenshotShortcut: preferences.screenshotShortcut
         )
     }
 
@@ -179,6 +186,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc
     private func handleOpenNetworkActivity() {
         openNetworkActivityHandler?()
+    }
+
+    @objc
+    private func handleCaptureRegion() {
+        captureRegionHandler?()
     }
 
     func invalidate() {

@@ -11,6 +11,7 @@ struct ProcessTrafficSnapshot: Equatable {
     let phase: ProcessTrafficPhase
     let statusMessage: String
     let processes: [ProcessTrafficProcessRecord]
+    let activeProcessCount: Int
     let lastUpdatedAt: Date?
     let errorMessage: String?
 
@@ -26,14 +27,11 @@ struct ProcessTrafficSnapshot: Equatable {
         }
     }
 
-    var activeProcessCount: Int {
-        processes.count
-    }
-
     static let idle = ProcessTrafficSnapshot(
         phase: .idle,
         statusMessage: L10n.tr("activity.process.status.idle"),
         processes: [],
+        activeProcessCount: 0,
         lastUpdatedAt: nil,
         errorMessage: nil
     )
@@ -43,6 +41,7 @@ struct ProcessTrafficSnapshot: Equatable {
             phase: .unavailable,
             statusMessage: L10n.tr("activity.process.status.unavailable"),
             processes: [],
+            activeProcessCount: 0,
             lastUpdatedAt: nil,
             errorMessage: nil
         )
@@ -50,15 +49,17 @@ struct ProcessTrafficSnapshot: Equatable {
 
     static func streaming(
         processes: [ProcessTrafficProcessRecord],
+        activeProcessCount: Int,
         lastUpdatedAt: Date
     ) -> ProcessTrafficSnapshot {
         ProcessTrafficSnapshot(
             phase: .streaming,
             statusMessage: L10n.tr(
-                "activity.process.status.streamingLowPower",
-                processes.count
+                "activity.process.status.streamingEnhanced",
+                activeProcessCount
             ),
             processes: processes,
+            activeProcessCount: activeProcessCount,
             lastUpdatedAt: lastUpdatedAt,
             errorMessage: nil
         )
@@ -69,6 +70,7 @@ struct ProcessTrafficSnapshot: Equatable {
             phase: .failed,
             statusMessage: L10n.tr("activity.process.status.failed"),
             processes: [],
+            activeProcessCount: 0,
             lastUpdatedAt: nil,
             errorMessage: message
         )

@@ -12,14 +12,18 @@ enum AppControlMenuFactory {
     static func makeMenu(
         target: AnyObject,
         openWindowSelector: Selector,
-        openActivitySelector: Selector
+        openActivitySelector: Selector,
+        screenshotSelector: Selector,
+        screenshotShortcut: KeyboardShortcut? = nil
     ) -> NSMenu {
         let menu = NSMenu()
         populateMenu(
             menu,
             target: target,
             openWindowSelector: openWindowSelector,
-            openActivitySelector: openActivitySelector
+            openActivitySelector: openActivitySelector,
+            screenshotSelector: screenshotSelector,
+            screenshotShortcut: screenshotShortcut
         )
         return menu
     }
@@ -28,7 +32,9 @@ enum AppControlMenuFactory {
         _ menu: NSMenu,
         target: AnyObject,
         openWindowSelector: Selector,
-        openActivitySelector: Selector
+        openActivitySelector: Selector,
+        screenshotSelector: Selector,
+        screenshotShortcut: KeyboardShortcut? = nil
     ) {
         menu.removeAllItems()
 
@@ -47,6 +53,18 @@ enum AppControlMenuFactory {
         )
         openActivityItem.target = target
         menu.addItem(openActivityItem)
+
+        let screenshotItem = NSMenuItem(
+            title: L10n.tr("menu.captureRegion"),
+            action: screenshotSelector,
+            keyEquivalent: ""
+        )
+        screenshotItem.target = target
+        if let screenshotShortcut, screenshotShortcut.isValid {
+            screenshotItem.keyEquivalent = screenshotShortcut.keyEquivalent
+            screenshotItem.keyEquivalentModifierMask = screenshotShortcut.menuModifierFlags
+        }
+        menu.addItem(screenshotItem)
 
         menu.addItem(.separator())
 

@@ -108,6 +108,10 @@ final class AppPreferences: ObservableObject {
     private enum Keys {
         static let appLanguage = "cn.tpshion.vm-net.app-language"
         static let displayMode = "cn.tpshion.vm-net.display-mode"
+        static let screenshotShortcutKeyCode =
+            "cn.tpshion.vm-net.screenshot-shortcut-key-code"
+        static let screenshotShortcutModifierFlags =
+            "cn.tpshion.vm-net.screenshot-shortcut-modifier-flags"
         static let showInFloatingBall = "cn.tpshion.vm-net.show-in-floating-ball"
         static let showDesktopPet = "cn.tpshion.vm-net.show-desktop-pet"
         static let desktopPetAllowsRoaming =
@@ -150,6 +154,19 @@ final class AppPreferences: ObservableObject {
     @Published var displayMode: ThroughputDisplayMode {
         didSet {
             defaults.set(displayMode.rawValue, forKey: Keys.displayMode)
+        }
+    }
+
+    @Published var screenshotShortcut: KeyboardShortcut {
+        didSet {
+            defaults.set(
+                Int(screenshotShortcut.keyCode),
+                forKey: Keys.screenshotShortcutKeyCode
+            )
+            defaults.set(
+                screenshotShortcut.modifiers.rawValue,
+                forKey: Keys.screenshotShortcutModifierFlags
+            )
         }
     }
 
@@ -319,6 +336,28 @@ final class AppPreferences: ObservableObject {
         self.displayMode = ThroughputDisplayMode(
             rawValue: defaults.string(forKey: Keys.displayMode) ?? ""
         ) ?? .realtime
+        if
+            let storedKeyCode = defaults.object(
+                forKey: Keys.screenshotShortcutKeyCode
+            ) as? Int,
+            let storedModifierFlags = defaults.object(
+                forKey: Keys.screenshotShortcutModifierFlags
+            ) as? UInt
+        {
+            let shortcut = KeyboardShortcut(
+                keyCode: UInt16(storedKeyCode),
+                modifiers: NSEvent.ModifierFlags(rawValue: storedModifierFlags)
+            )
+            if shortcut == .legacyDefaultRegionScreenshot {
+                self.screenshotShortcut = .defaultRegionScreenshot
+            } else {
+                self.screenshotShortcut = shortcut.isValid
+                    ? shortcut
+                    : .defaultRegionScreenshot
+            }
+        } else {
+            self.screenshotShortcut = .defaultRegionScreenshot
+        }
         self.showInFloatingBall = storedShowInFloatingBall
         self.showDesktopPet = storedShowDesktopPet
         self.desktopPetAllowsRoaming = storedDesktopPetAllowsRoaming
