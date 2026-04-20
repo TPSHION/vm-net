@@ -368,10 +368,6 @@ private enum RegionScreenshotPipeline {
             throw RegionScreenshotError.unsupported
         }
 
-        if #available(macOS 15.2, *) {
-            return try await SCScreenshotManager.captureImage(in: request.rect)
-        }
-
         let shareableContent = try await loadShareableContent()
         guard
             let displayID = request.displayID,
@@ -412,10 +408,37 @@ private enum RegionScreenshotPipeline {
             Int(configuration.sourceRect.height * CGFloat(filter.pointPixelScale))
         )
 
-        return try await SCScreenshotManager.captureImage(
+        return try await captureImage(
             contentFilter: filter,
             configuration: configuration
         )
+    }
+
+    @available(macOS 14.0, *)
+    private static func captureImage(
+        contentFilter: SCContentFilter,
+        configuration: SCStreamConfiguration
+    ) async throws -> CGImage {
+        try await withCheckedThrowingContinuation { continuation in
+            SCScreenshotManager.captureImage(
+                contentFilter: contentFilter,
+                configuration: configuration
+            ) { image, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+
+                guard let image else {
+                    continuation.resume(
+                        throwing: RegionScreenshotError.emptyCapture
+                    )
+                    return
+                }
+
+                continuation.resume(returning: image)
+            }
+        }
     }
 
     private static func renderAnnotations(
@@ -689,6 +712,7 @@ private enum RegionScreenshotPipeline {
 private enum RegionScreenshotError: LocalizedError {
     case unsupported
     case displayUnavailable
+    case emptyCapture
     case saveFailed
 
     var errorDescription: String? {
@@ -697,6 +721,8 @@ private enum RegionScreenshotError: LocalizedError {
             return L10n.tr("screenshot.status.unsupported")
         case .displayUnavailable:
             return L10n.tr("screenshot.status.displayUnavailable")
+        case .emptyCapture:
+            return L10n.tr("screenshot.status.failed")
         case .saveFailed:
             return L10n.tr("screenshot.status.saveFailed")
         }

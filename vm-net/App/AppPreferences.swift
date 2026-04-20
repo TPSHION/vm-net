@@ -348,9 +348,13 @@ final class AppPreferences: ObservableObject {
                 keyCode: UInt16(storedKeyCode),
                 modifiers: NSEvent.ModifierFlags(rawValue: storedModifierFlags)
             )
-            self.screenshotShortcut = shortcut.isValid
-                ? shortcut
-                : .defaultRegionScreenshot
+            if shortcut == .legacyDefaultRegionScreenshot {
+                self.screenshotShortcut = .defaultRegionScreenshot
+            } else {
+                self.screenshotShortcut = shortcut.isValid
+                    ? shortcut
+                    : .defaultRegionScreenshot
+            }
         } else {
             self.screenshotShortcut = .defaultRegionScreenshot
         }

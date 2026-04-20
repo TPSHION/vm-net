@@ -17,9 +17,14 @@ struct KeyboardShortcut: Equatable {
         .shift,
     ]
 
-    static let defaultRegionScreenshot = KeyboardShortcut(
+    static let legacyDefaultRegionScreenshot = KeyboardShortcut(
         keyCode: UInt16(kVK_ANSI_S),
         modifiers: [.control, .option, .command]
+    )
+
+    static let defaultRegionScreenshot = KeyboardShortcut(
+        keyCode: UInt16(kVK_ANSI_A),
+        modifiers: [.command]
     )
 
     var keyCode: UInt16
