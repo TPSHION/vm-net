@@ -39,11 +39,19 @@ struct SpeedTestPageView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             headerRow
-            statusSection
-            metricsSection
-            historySection
-            Spacer(minLength: 0)
+
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: 18) {
+                    statusSection
+                    metricsSection
+                    historySection
+                }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding(.bottom, 12)
+            }
+            .vmNetScrollBarsHidden()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var headerRow: some View {

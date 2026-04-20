@@ -81,7 +81,7 @@ struct ConfigurationView: View {
         } detail: {
             detailContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .padding(24)
+                .padding(.horizontal, 24)
         }
         .navigationSplitViewStyle(.balanced)
         .environment(\.locale, preferences.appLanguage.locale)
@@ -136,15 +136,16 @@ struct ConfigurationView: View {
     }
 
     private var overviewPage: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            overviewHeaderSection
+        VStack(alignment: .leading, spacing: 12) {
+            overviewFixedHeaderSection
 
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 18) {
+                    overviewSubtitleSection
                     dashboardSection
                     quickActionsSection
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
                 .padding(.bottom, 12)
             }
             .vmNetScrollBarsHidden()
@@ -345,6 +346,18 @@ struct ConfigurationView: View {
             title: L10n.tr("navigation.overview.title"),
             subtitle: L10n.tr("navigation.overview.subtitle")
         )
+    }
+
+    private var overviewFixedHeaderSection: some View {
+        Text(L10n.tr("navigation.overview.title"))
+            .font(.system(size: 24, weight: .semibold))
+    }
+
+    private var overviewSubtitleSection: some View {
+        Text(L10n.tr("navigation.overview.subtitle"))
+            .font(.system(size: 13))
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var preferencesHeaderSection: some View {
